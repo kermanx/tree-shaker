@@ -1,6 +1,6 @@
 use super::{
   consumed_object, utils::UnionLike, Entity, EntityTrait, EnumeratedProperties, IteratedElements,
-  LiteralEntity, TypeofResult,
+  LiteralEntity, ObjectPrototype, TypeofResult,
 };
 use crate::{analyzer::Analyzer, consumable::Consumable, scope::CfScopeKind, use_consumed_flag};
 use rustc_hash::FxHashSet;
@@ -195,6 +195,15 @@ impl<'a, V: UnionLike<'a, Entity<'a>> + Debug + 'a> EntityTrait<'a> for UnionEnt
       result.extend(keys.into_iter().map(|(_, key)| (false, key)));
     }
     Some(result)
+  }
+
+  fn get_constructor_prototype(
+    &'a self,
+    _analyzer: &Analyzer<'a>,
+    _dep: Consumable<'a>,
+  ) -> Option<(Consumable<'a>, ObjectPrototype<'a>, ObjectPrototype<'a>)> {
+    // TODO: Support this
+    None
   }
 
   fn test_typeof(&self) -> TypeofResult {

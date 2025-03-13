@@ -1,0 +1,16 @@
+---
+source: crates/tree_shaker/tests/mod.rs
+expression: do_tree_shake(input)
+input_file: crates/tree_shaker/tests/fixtures/class/basics.js
+---
+class A {
+	static a() {
+		return new A();
+	}
+	get a() {
+		return unknown();
+	}
+}
+console.log(1, 10, 12, 21);
+const b = A.a();
+b.a;

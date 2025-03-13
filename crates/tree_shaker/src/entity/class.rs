@@ -2,12 +2,9 @@ use super::{
   consumed_object, Entity, EntityTrait, EnumeratedProperties, IteratedElements, ObjectEntity,
   TypeofResult,
 };
-use crate::{
-  analyzer::Analyzer, consumable::Consumable, module::ModuleId, scope::VariableScopeId,
-  use_consumed_flag,
-};
+use crate::{analyzer::Analyzer, consumable::Consumable, module::ModuleId, use_consumed_flag};
 use oxc::ast::ast::Class;
-use std::{cell::Cell, rc::Rc};
+use std::cell::Cell;
 
 #[derive(Debug)]
 pub struct ClassEntity<'a> {
@@ -16,8 +13,7 @@ pub struct ClassEntity<'a> {
   pub node: &'a Class<'a>,
   pub keys: Vec<Option<Entity<'a>>>,
   pub statics: &'a ObjectEntity<'a>,
-  pub super_class: Option<Entity<'a>>,
-  pub variable_scope_stack: Rc<Vec<VariableScopeId>>,
+  pub prototype: &'a ObjectEntity<'a>,
 }
 
 impl<'a> EntityTrait<'a> for ClassEntity<'a> {

@@ -121,6 +121,47 @@ export function main() {
 
 </td></tr></tbody></table>
 
+### Class Tree Shaking
+
+> One of the hardest but the coolest.
+
+<table><tbody><tr><td width="500px"> Input </td><td width="500px"> Output </td></tr><tr>
+<td valign="top">
+
+```js
+class A {
+  method(x) {
+    console.log("A", x);
+  }
+  static static_prop = unknown;
+}
+class B extends A {
+  method(x) {
+    console.log("B", x);
+  }
+  unused() {
+    console.log("unused");
+  }
+}
+new B().method(A.static_prop);
+```
+
+</td><td valign="top">
+
+```js
+class A {
+  static a = unknown;
+}
+class B extends A {
+  a(x) {
+    console.log("B", x);
+  }
+}
+new B().a(A.a);
+```
+
+</td></tr></tbody></table>
+
 ### JSX
 
 > `createElement` also works, if it is directly imported from `react`.
@@ -204,9 +245,16 @@ export function main() {
 
 ## Comparison
 
-- **Rollup**: Rollup tree-shakes the code in a multi-module context, while this project is focused on a single module. For some cases, this project can remove 10% more code than Rollup.
-- **Closure Compiler**: Closure Compiler can be considered as a tree shaker + minifier, while this project is only a tree shaker (for the minifier, we have `oxc_minifier`). Theoretically, we can shake more than Closure Compiler, but we cannot compare them directly because we don't have a equivalent minifier. Also, it's written in Java, which is hard to be integrated into the JS ecosystem.
-- **swc**: swc can also be considered as a tree shaker + minifier. TBH, currently swc is much faster and more complete. It is rule-based, which is a different approach from this project. It's also not compatible with the Oxc project, thus a new tree shaker is needed.
+- **Rollup**: Rollup tree-shakes the code in a multi-module context, and it has information about the side effects of the modules. This project does a more fine-grained tree-shaking, and it can be used as a post-processor for Rollup, and is expected to produce smaller code.
+- **Closure Compiler**/**swc**: they support both minification and dead code elimination, while this project is focused on tree-shaking (difference below). You can expect a size reduction when using tree-shaker on their output, and vice versa.
+
+### What's Tree Shaking?
+
+Here is a simple comparison:
+
+- Minification: Removing whitespace, renaming variables, syntax-level optimizations, etc.
+- Dead code elimination: Removing code that is never executed, by using a set of rules, for example, "`if(false) { ... }` can be removed".
+- Tree shaking: Removing code that is never executed, by simulating the runtime behavior of the code. For example, "`if (x) { ... }` can only be preserved if `...` is reachable and has side effects".
 
 ## Todo
 

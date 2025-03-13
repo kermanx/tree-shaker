@@ -1,4 +1,4 @@
-use super::{object::create_object_prototype, Prototype};
+use super::{object::create_object_prototype, BuiltinPrototype};
 use crate::{
   entity::{Entity, EntityFactory},
   init_prototype,
@@ -6,7 +6,7 @@ use crate::{
 use oxc::semantic::SymbolId;
 use oxc_index::Idx;
 
-pub fn create_function_prototype<'a>(factory: &EntityFactory<'a>) -> Prototype<'a> {
+pub fn create_function_prototype<'a>(factory: &EntityFactory<'a>) -> BuiltinPrototype<'a> {
   init_prototype!("Function", create_object_prototype(factory), {
     "apply" => factory.implemented_builtin_fn("Function::apply", |analyzer, dep, this, args| {
       let mut args = args.destruct_as_array(analyzer, dep, 2, false).0;

@@ -1,6 +1,6 @@
 use super::{
   consumed_object, never::NeverEntity, Entity, EntityFactory, EntityTrait, EnumeratedProperties,
-  IteratedElements, ObjectEntity, TypeofResult,
+  IteratedElements, ObjectEntity, ObjectPrototype, TypeofResult,
 };
 use crate::{analyzer::Analyzer, consumable::Consumable};
 use std::fmt::Debug;
@@ -150,6 +150,14 @@ impl<'a, T: BuiltinFnEntity<'a>> EntityTrait<'a> for T {
     analyzer.factory.string("")
   }
 
+  fn get_constructor_prototype(
+    &'a self,
+    _analyzer: &Analyzer<'a>,
+    _dep: Consumable<'a>,
+  ) -> Option<(Consumable<'a>, ObjectPrototype<'a>, ObjectPrototype<'a>)> {
+    todo!()
+  }
+
   fn test_typeof(&self) -> TypeofResult {
     TypeofResult::Function
   }
@@ -217,7 +225,7 @@ impl<'a> Analyzer<'a> {
       #[cfg(feature = "flame")]
       name: _name,
       implementation,
-      object: Some(self.new_function_object()),
+      object: Some(self.new_function_object(None).0),
     })
   }
 }

@@ -1,0 +1,16 @@
+---
+source: crates/tree_shaker/tests/mod.rs
+expression: do_tree_shake(input)
+input_file: crates/tree_shaker/tests/fixtures/class/redefine.js
+---
+function A(x) {
+	this.x = x;
+}
+A.prototype = {
+	constructor: A,
+	method: function(y) {
+		return this.x + y;
+	}
+};
+const a = new A(1);
+console.log(a.method(2));

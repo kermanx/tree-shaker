@@ -1,0 +1,20 @@
+---
+source: crates/tree_shaker/tests/mod.rs
+expression: do_tree_shake(input)
+input_file: crates/tree_shaker/tests/fixtures/class/effects.js
+---
+class __unused_3F5F {
+	static {
+		effect(2);
+		effect(4);
+		effect(7);
+		effect(1);
+		effect(5);
+		{
+			effect(6);
+		}
+		{
+			effect(9);
+		}
+	}
+}

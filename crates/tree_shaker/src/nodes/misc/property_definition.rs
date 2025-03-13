@@ -11,7 +11,7 @@ impl<'a> Transformer<'a> {
   ) -> Option<ClassElement<'a>> {
     let PropertyDefinition { r#type, span, decorators, key, value, computed, r#static, .. } = node;
 
-    if *r#static && !self.is_referred(AstKind2::PropertyDefinition(node)) {
+    if !self.is_referred(AstKind2::PropertyDefinition(node)) {
       return None;
     }
 

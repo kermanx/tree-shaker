@@ -18,6 +18,7 @@ pub enum AtomState<'a> {
   Constrained(Option<IdentityGroupId>, FxHashSet<UniquenessGroupId>),
   Constant(&'a str),
   NonMangable,
+  Preserved,
 }
 
 pub struct Mangler<'a> {
@@ -26,6 +27,7 @@ pub struct Mangler<'a> {
   pub allocator: &'a Allocator,
 
   pub atoms: IndexVec<MangleAtom, AtomState<'a>>,
+  pub builtin_atom: MangleAtom,
 
   /// (atoms, resolved_name)[]
   pub identity_groups: IndexVec<IdentityGroupId, (Vec<MangleAtom>, Option<&'a str>)>,
@@ -35,10 +37,13 @@ pub struct Mangler<'a> {
 
 impl<'a> Mangler<'a> {
   pub fn new(enabled: bool, allocator: &'a Allocator) -> Self {
+    let mut atoms = IndexVec::new();
+    let builtin_atom = atoms.push(AtomState::Preserved);
     Self {
       enabled,
       allocator,
-      atoms: IndexVec::new(),
+      atoms,
+      builtin_atom,
       identity_groups: IndexVec::new(),
       uniqueness_groups: IndexVec::new(),
     }
@@ -77,6 +82,7 @@ impl<'a> Mangler<'a> {
       }
       AtomState::Constant(name) => Some(*name),
       AtomState::NonMangable => None,
+      AtomState::Preserved => None,
     }
   }
 
@@ -96,6 +102,7 @@ impl<'a> Mangler<'a> {
           }
           AtomState::Constant(s) => return *s,
           AtomState::NonMangable => unreachable!(),
+          AtomState::Preserved => {}
         }
       }
       let name = get_mangled_name(n);

@@ -1,12 +1,11 @@
 use super::{
   consumed_object, Entity, EntityTrait, EnumeratedProperties, IteratedElements, ObjectEntity,
-  TypeofResult,
+  ObjectPrototype, TypeofResult,
 };
 use crate::{
   analyzer::Analyzer,
   consumable::Consumable,
   scope::VariableScopeId,
-  use_consumed_flag,
   utils::{CalleeInfo, CalleeNode},
 };
 use oxc::span::GetSpan;
@@ -14,21 +13,20 @@ use std::{cell::Cell, rc::Rc};
 
 #[derive(Debug)]
 pub struct FunctionEntity<'a> {
-  consumed: Rc<Cell<bool>>,
   body_consumed: Rc<Cell<bool>>,
   pub callee: CalleeInfo<'a>,
   pub variable_scope_stack: Rc<Vec<VariableScopeId>>,
   pub finite_recursion: bool,
-  pub object: &'a ObjectEntity<'a>,
+  pub statics: &'a ObjectEntity<'a>,
+  /// The `prototype` property. Not `__proto__`.
+  pub prototype: &'a ObjectEntity<'a>,
 }
 
 impl<'a> EntityTrait<'a> for FunctionEntity<'a> {
   fn consume(&'a self, analyzer: &mut Analyzer<'a>) {
-    use_consumed_flag!(self);
-
     self.consume_body(analyzer);
-
-    self.object.consume(analyzer);
+    self.statics.consume(analyzer);
+    self.prototype.consume(analyzer);
   }
 
   fn unknown_mutate(&'a self, analyzer: &mut Analyzer<'a>, dep: Consumable<'a>) {
@@ -42,7 +40,7 @@ impl<'a> EntityTrait<'a> for FunctionEntity<'a> {
     dep: Consumable<'a>,
     key: Entity<'a>,
   ) -> Entity<'a> {
-    self.object.get_property(analyzer, self.forward_dep(dep, analyzer), key)
+    self.statics.get_property(analyzer, self.forward_dep(dep, analyzer), key)
   }
 
   fn set_property(
@@ -52,11 +50,16 @@ impl<'a> EntityTrait<'a> for FunctionEntity<'a> {
     key: Entity<'a>,
     value: Entity<'a>,
   ) {
-    self.object.set_property(analyzer, self.forward_dep(dep, analyzer), key, value);
+    // TODO: Support analyzing this kind of mutation
+    if analyzer.op_strict_eq(key, analyzer.factory.string("prototype")).0 != Some(false) {
+      return consumed_object::set_property(analyzer, dep, key, value);
+    }
+
+    self.statics.set_property(analyzer, self.forward_dep(dep, analyzer), key, value);
   }
 
   fn delete_property(&'a self, analyzer: &mut Analyzer<'a>, dep: Consumable<'a>, key: Entity<'a>) {
-    self.object.delete_property(analyzer, self.forward_dep(dep, analyzer), key);
+    self.statics.delete_property(analyzer, self.forward_dep(dep, analyzer), key);
   }
 
   fn enumerate_properties(
@@ -77,24 +80,16 @@ impl<'a> EntityTrait<'a> for FunctionEntity<'a> {
     this: Entity<'a>,
     args: Entity<'a>,
   ) -> Entity<'a> {
-    if self.consumed.get() {
+    if self.body_consumed.get() {
       return consumed_object::call(self, analyzer, dep, this, args);
     }
 
-    if !self.finite_recursion {
-      let mut recursion_depth = 0usize;
-      for scope in analyzer.scoping.call.iter().rev() {
-        if scope.callee.node == self.callee.node {
-          recursion_depth += 1;
-          if recursion_depth >= analyzer.config.max_recursion_depth {
-            self.consume_body(analyzer);
-            return consumed_object::call(self, analyzer, dep, this, args);
-          }
-        }
-      }
+    if self.check_recursion(analyzer) {
+      self.consume_body(analyzer);
+      return consumed_object::call(self, analyzer, dep, this, args);
     }
 
-    self.call_impl(analyzer, dep, this, args, false)
+    self.call_impl::<false>(analyzer, dep, this, args, false)
   }
 
   fn construct(
@@ -103,7 +98,16 @@ impl<'a> EntityTrait<'a> for FunctionEntity<'a> {
     dep: Consumable<'a>,
     args: Entity<'a>,
   ) -> Entity<'a> {
-    consumed_object::construct(self, analyzer, dep, args)
+    if self.body_consumed.get() {
+      return consumed_object::construct(self, analyzer, dep, args);
+    }
+
+    if self.check_recursion(analyzer) {
+      self.consume_body(analyzer);
+      return consumed_object::construct(self, analyzer, dep, args);
+    }
+
+    self.construct_impl(analyzer, dep, args, false)
   }
 
   fn jsx(&'a self, analyzer: &mut Analyzer<'a>, props: Entity<'a>) -> Entity<'a> {
@@ -116,10 +120,7 @@ impl<'a> EntityTrait<'a> for FunctionEntity<'a> {
   }
 
   fn r#await(&'a self, analyzer: &mut Analyzer<'a>, dep: Consumable<'a>) -> Entity<'a> {
-    if self.consumed.get() {
-      return consumed_object::r#await(analyzer, dep);
-    }
-    analyzer.factory.computed(self, dep)
+    consumed_object::r#await(analyzer, dep)
   }
 
   fn iterate(&'a self, analyzer: &mut Analyzer<'a>, dep: Consumable<'a>) -> IteratedElements<'a> {
@@ -136,17 +137,11 @@ impl<'a> EntityTrait<'a> for FunctionEntity<'a> {
   }
 
   fn get_to_string(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
-    if self.consumed.get() {
-      return consumed_object::get_to_string(analyzer);
-    }
-    analyzer.factory.computed_unknown_string(self)
+    consumed_object::get_to_string(analyzer)
   }
 
   fn get_to_numeric(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
-    if self.consumed.get() {
-      return consumed_object::get_to_numeric(analyzer);
-    }
-    analyzer.factory.nan
+    consumed_object::get_to_numeric(analyzer)
   }
 
   fn get_to_boolean(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
@@ -158,16 +153,19 @@ impl<'a> EntityTrait<'a> for FunctionEntity<'a> {
   }
 
   fn get_to_jsx_child(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
-    if self.consumed.get() {
-      analyzer.factory.immutable_unknown
-    } else {
-      // TODO: analyzer.thrown_builtin_error("Functions are not valid JSX children");
-      analyzer.factory.string("")
-    }
+    analyzer.factory.immutable_unknown
   }
 
   fn get_own_keys(&'a self, analyzer: &Analyzer<'a>) -> Option<Vec<(bool, Entity<'a>)>> {
-    self.object.get_own_keys(analyzer)
+    self.statics.get_own_keys(analyzer)
+  }
+
+  fn get_constructor_prototype(
+    &'a self,
+    _analyzer: &Analyzer<'a>,
+    dep: Consumable<'a>,
+  ) -> Option<(Consumable<'a>, ObjectPrototype<'a>, ObjectPrototype<'a>)> {
+    Some((dep, ObjectPrototype::Custom(self.statics), ObjectPrototype::Custom(self.prototype)))
   }
 
   fn test_typeof(&self) -> TypeofResult {
@@ -184,7 +182,22 @@ impl<'a> EntityTrait<'a> for FunctionEntity<'a> {
 }
 
 impl<'a> FunctionEntity<'a> {
-  pub fn call_impl(
+  fn check_recursion(&self, analyzer: &Analyzer<'a>) -> bool {
+    if !self.finite_recursion {
+      let mut recursion_depth = 0usize;
+      for scope in analyzer.scoping.call.iter().rev() {
+        if scope.callee.node == self.callee.node {
+          recursion_depth += 1;
+          if recursion_depth >= analyzer.config.max_recursion_depth {
+            return true;
+          }
+        }
+      }
+    }
+    false
+  }
+
+  pub fn call_impl<const IS_NEW: bool>(
     &'a self,
     analyzer: &mut Analyzer<'a>,
     dep: Consumable<'a>,
@@ -213,9 +226,51 @@ impl<'a> FunctionEntity<'a> {
         args,
         consume,
       ),
+      CalleeNode::ClassConstructor(node) => {
+        // if !CTOR {
+        analyzer.call_class_constructor(
+          self.callee,
+          call_dep,
+          node,
+          variable_scopes,
+          this,
+          args,
+          consume,
+        )
+        // } else {
+        //   analyzer.throw_builtin_error("Cannot invoke class constructor without 'new'");
+        //   analyzer.factory.unknown()
+        // }
+      }
       _ => unreachable!(),
     };
+    let ret_val = if IS_NEW {
+      let typeof_ret = ret_val.test_typeof();
+      match (
+        typeof_ret.intersects(TypeofResult::Object),
+        typeof_ret.intersects(TypeofResult::_Primitive),
+      ) {
+        (true, true) => analyzer.factory.union((ret_val, this)),
+        (true, false) => ret_val,
+        (false, true) => this,
+        (false, false) => analyzer.factory.never,
+      }
+    } else {
+      ret_val
+    };
     analyzer.factory.computed(ret_val, call_dep)
+  }
+
+  pub fn construct_impl(
+    &'a self,
+    analyzer: &mut Analyzer<'a>,
+    dep: Consumable<'a>,
+    args: Entity<'a>,
+    consume: bool,
+  ) -> Entity<'a> {
+    let m = self.prototype.is_mangable().then(|| analyzer.new_object_mangling_group());
+    let target = analyzer.new_empty_object(ObjectPrototype::Custom(self.prototype), m);
+    self.call_impl::<true>(analyzer, dep, target, args, consume)
   }
 
   pub fn consume_body(&'a self, analyzer: &mut Analyzer<'a>) {
@@ -231,7 +286,7 @@ impl<'a> FunctionEntity<'a> {
     let name = "";
 
     analyzer.exec_consumed_fn(name, move |analyzer| {
-      self.call_impl(
+      self.call_impl::<false>(
         analyzer,
         analyzer.factory.empty_consumable,
         analyzer.factory.unknown(),
@@ -247,14 +302,15 @@ impl<'a> FunctionEntity<'a> {
 }
 
 impl<'a> Analyzer<'a> {
-  pub fn new_function(&mut self, node: CalleeNode<'a>) -> Entity<'a> {
+  pub fn new_function(&mut self, node: CalleeNode<'a>) -> &'a FunctionEntity<'a> {
+    let (statics, prototype) = self.new_function_object(Some(node.into()));
     let function = self.factory.alloc(FunctionEntity {
-      consumed: Rc::new(Cell::new(false)),
       body_consumed: Rc::new(Cell::new(false)),
       callee: self.new_callee_info(node),
       variable_scope_stack: Rc::new(self.scoping.variable.stack.clone()),
       finite_recursion: self.has_finite_recursion_notation(node.span()),
-      object: self.new_function_object(),
+      statics,
+      prototype,
     });
 
     let mut created_in_self = false;
@@ -267,9 +323,8 @@ impl<'a> Analyzer<'a> {
 
     if created_in_self {
       function.consume_body(self);
-      self.factory.unknown()
-    } else {
-      function
     }
+
+    function
   }
 }

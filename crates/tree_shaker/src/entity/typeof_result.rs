@@ -5,6 +5,12 @@ bitflags! {
   pub struct TypeofResult: u8 {
     const _None = 0;
     const _Unknown = 0xFF;
+    const _Primitive = Self::String.bits()
+      | Self::Number.bits()
+      | Self::BigInt.bits()
+      | Self::Boolean.bits()
+      | Self::Symbol.bits()
+      | Self::Undefined.bits();
 
     const String = 1 << 0;
     const Number = 1 << 1;

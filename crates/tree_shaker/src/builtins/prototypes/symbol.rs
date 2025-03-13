@@ -1,7 +1,7 @@
-use super::{object::create_object_prototype, Prototype};
+use super::{object::create_object_prototype, BuiltinPrototype};
 use crate::{entity::EntityFactory, init_prototype};
 
-pub fn create_symbol_prototype<'a>(factory: &EntityFactory<'a>) -> Prototype<'a> {
+pub fn create_symbol_prototype<'a>(factory: &EntityFactory<'a>) -> BuiltinPrototype<'a> {
   init_prototype!("Symbol", create_object_prototype(factory), {
     "toString" => factory.pure_fn_returns_string,
     "valueOf" => factory.pure_fn_returns_symbol,

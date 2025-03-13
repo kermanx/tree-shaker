@@ -75,6 +75,13 @@ impl<'a> Mangler<'a> {
     let Mangler { atoms, identity_groups, uniqueness_groups, .. } = self;
 
     match get_two_mut_from_vec(atoms, a, b) {
+      (AtomState::Preserved, x) | (x, AtomState::Preserved) => {
+        if eq {
+          *x = AtomState::Preserved;
+        }
+        // If neq, do nothing because currently the preserved strings are builtin strings
+        // which is long enough to not conflict with mangled strings.
+      }
       (AtomState::Constant(a), AtomState::Constant(b)) => assert_eq!(a, b),
       (AtomState::Constant(a), _) => {
         let s = *a;
@@ -172,6 +179,9 @@ impl<'a> Mangler<'a> {
       }
       AtomState::NonMangable => {
         self.mark_uniqueness_group_non_mangable(group);
+      }
+      AtomState::Preserved => {
+        // Do nothing, explained above
       }
     }
   }

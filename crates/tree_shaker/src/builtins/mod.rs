@@ -11,8 +11,8 @@ use crate::{
   TreeShakeConfig,
 };
 use known_modules::KnownModule;
+pub use prototypes::BuiltinPrototype;
 use prototypes::BuiltinPrototypes;
-pub use prototypes::Prototype;
 use react::AnalyzerDataForReact;
 use rustc_hash::FxHashMap;
 

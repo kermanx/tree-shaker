@@ -19,6 +19,7 @@ pub struct Consumable<'a>(pub &'a (dyn ConsumableTrait<'a> + 'a));
 pub type ConsumableVec<'a> = Vec<Consumable<'a>>;
 
 impl<'a> Analyzer<'a> {
+  #[inline]
   pub fn consume(&mut self, dep: impl ConsumableTrait<'a> + 'a) {
     dep.consume(self);
   }

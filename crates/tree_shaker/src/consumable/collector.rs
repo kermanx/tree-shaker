@@ -46,8 +46,8 @@ impl<'a, T: ConsumableTrait<'a> + 'a> ConsumableCollector<'a, T> {
     self.try_collect(factory).unwrap_or(factory.empty_consumable)
   }
 
-  pub fn consume_all(self, analyzer: &mut Analyzer<'a>) {
-    for value in self.current {
+  pub fn consume_all(&self, analyzer: &mut Analyzer<'a>) {
+    for value in &self.current {
       value.consume(analyzer);
     }
 

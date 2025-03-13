@@ -1,7 +1,7 @@
-use super::{null::create_null_prototype, Prototype};
+use super::{null::create_null_prototype, BuiltinPrototype};
 use crate::{entity::EntityFactory, init_prototype};
 
-pub fn create_object_prototype<'a>(factory: &EntityFactory<'a>) -> Prototype<'a> {
+pub fn create_object_prototype<'a>(factory: &EntityFactory<'a>) -> BuiltinPrototype<'a> {
   init_prototype!("Object", create_null_prototype(factory), {
     "constructor" => factory.immutable_unknown,
     "hasOwnProperty" => factory.pure_fn_returns_boolean,

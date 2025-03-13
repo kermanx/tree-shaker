@@ -1,0 +1,15 @@
+---
+source: crates/tree_shaker/tests/mod.rs
+expression: do_tree_shake(input)
+input_file: crates/tree_shaker/tests/fixtures/class/extends.js
+---
+class Base {}
+class Derived extends Base {
+	a() {
+		console.log("Derived");
+	}
+}
+const a = new Derived();
+console.log("Base1Derived");
+console.log(1, 2, 4);
+a.a();

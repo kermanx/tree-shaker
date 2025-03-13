@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
   analyzer::Analyzer,
-  builtins::Prototype,
+  builtins::BuiltinPrototype,
   consumable::Consumable,
   mangling::{MangleAtom, MangleConstraint},
   transformer::Transformer,
@@ -441,7 +441,7 @@ impl<'a> LiteralEntity<'a> {
     }
   }
 
-  fn get_prototype(&self, analyzer: &mut Analyzer<'a>) -> &'a Prototype<'a> {
+  fn get_prototype(&self, analyzer: &mut Analyzer<'a>) -> &'a BuiltinPrototype<'a> {
     match self {
       LiteralEntity::String(_, _) => &analyzer.builtins.prototypes.string,
       LiteralEntity::Number(_, _) => &analyzer.builtins.prototypes.number,

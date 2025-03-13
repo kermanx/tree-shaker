@@ -1,8 +1,7 @@
 use crate::{
   consumable::{Consumable, ConsumableTrait, LazyConsumable, OnceConsumable},
   mangling::{AlwaysMangableDep, MangleAtom, MangleConstraint, ManglingDep},
-  module::ModuleId,
-  scope::{CfScopeId, VariableScopeId},
+  scope::CfScopeId,
   utils::F64WithEq,
   TreeShakeConfig,
 };
@@ -17,17 +16,16 @@ use super::{
   react_element::ReactElementEntity,
   union::UnionEntity,
   utils::UnionLike,
-  ClassEntity, Entity, LiteralEntity, ObjectEntity, ObjectPrototype, PrimitiveEntity,
-  PureBuiltinFnEntity, UnknownEntity,
+  Entity, LiteralEntity, ObjectEntity, ObjectPrototype, PrimitiveEntity, PureBuiltinFnEntity,
+  UnknownEntity,
 };
+use oxc::allocator::Allocator;
 use oxc::semantic::SymbolId;
-use oxc::{allocator::Allocator, ast::ast::Class};
 use oxc_syntax::operator::LogicalOperator;
 
 use std::{
   cell::{Cell, RefCell},
   fmt::Debug,
-  rc::Rc,
 };
 pub struct EntityFactory<'a> {
   pub allocator: &'a Allocator,
@@ -155,12 +153,13 @@ impl<'a> EntityFactory<'a> {
     self.alloc(ObjectEntity {
       consumable,
       consumed: Cell::new(false),
+      consumed_as_prototype: Cell::new(false),
       cf_scope: CfScopeId::new(0),
       object_id,
       string_keyed: Default::default(),
       unknown_keyed: Default::default(),
       rest: Default::default(),
-      prototype,
+      prototype: Cell::new(prototype),
       mangling_group: None,
     })
   }
@@ -190,26 +189,6 @@ impl<'a> EntityFactory<'a> {
       name: _name,
       implementation,
       object: None,
-    })
-  }
-
-  pub fn class(
-    &self,
-    module: ModuleId,
-    node: &'a Class<'a>,
-    keys: Vec<Option<Entity<'a>>>,
-    variable_scope_stack: Vec<VariableScopeId>,
-    super_class: Option<Entity<'a>>,
-    statics: &'a ObjectEntity<'a>,
-  ) -> Entity<'a> {
-    self.alloc(ClassEntity {
-      consumed: Cell::new(false),
-      module,
-      node,
-      keys,
-      statics,
-      variable_scope_stack: Rc::new(variable_scope_stack),
-      super_class,
     })
   }
 

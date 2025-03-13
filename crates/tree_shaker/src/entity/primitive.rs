@@ -2,7 +2,7 @@ use super::{
   consumed_object, never::NeverEntity, Entity, EntityTrait, EnumeratedProperties, IteratedElements,
   TypeofResult,
 };
-use crate::{analyzer::Analyzer, builtins::Prototype, consumable::Consumable};
+use crate::{analyzer::Analyzer, builtins::BuiltinPrototype, consumable::Consumable};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrimitiveEntity {
@@ -190,7 +190,7 @@ impl<'a> EntityTrait<'a> for PrimitiveEntity {
 }
 
 impl<'a> PrimitiveEntity {
-  fn get_prototype(&self, analyzer: &mut Analyzer<'a>) -> &'a Prototype<'a> {
+  fn get_prototype(&self, analyzer: &mut Analyzer<'a>) -> &'a BuiltinPrototype<'a> {
     match self {
       PrimitiveEntity::String => &analyzer.builtins.prototypes.string,
       PrimitiveEntity::Number => &analyzer.builtins.prototypes.number,

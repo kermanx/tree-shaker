@@ -27,7 +27,11 @@ impl<'a> Transformer<'a> {
     } = node;
 
     if let Some(mut transformed_value) = self.transform_function(value, false) {
-      let key = self.transform_property_key(key, true).unwrap();
+      let key = if node.kind.is_constructor() {
+        self.clone_node(key)
+      } else {
+        self.transform_property_key(key, true).unwrap()
+      };
 
       if *kind == MethodDefinitionKind::Set {
         self.patch_method_definition_params(value, &mut transformed_value);

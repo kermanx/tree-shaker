@@ -3,9 +3,10 @@ use crate::{
   consumable::{Consumable, ConsumableCollector},
   entity::Entity,
   mangling::{MangleAtom, MangleConstraint},
+  utils::Found,
 };
 
-use super::get::GetPropertyContext;
+use super::{get::GetPropertyContext, set::PendingSetter};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectPropertyValue<'a> {
@@ -50,7 +51,7 @@ impl<'a> ObjectProperty<'a> {
     analyzer: &Analyzer<'a>,
     context: &mut GetPropertyContext<'a>,
     key_atom: Option<MangleAtom>,
-  ) -> bool {
+  ) {
     if let Some(key_atom) = key_atom {
       self.get_mangable(analyzer, context, key_atom);
     } else {
@@ -59,7 +60,6 @@ impl<'a> ObjectProperty<'a> {
     if let Some(dep) = self.non_existent.try_collect(analyzer.factory) {
       context.extra_deps.push(dep);
     }
-    self.definite
   }
 
   fn get_unmangable(&mut self, analyzer: &Analyzer<'a>, context: &mut GetPropertyContext<'a>) {
@@ -105,36 +105,61 @@ impl<'a> ObjectProperty<'a> {
     analyzer: &Analyzer<'a>,
     indeterminate: bool,
     value: Entity<'a>,
-    setters: &mut Vec<(bool, Consumable<'a>, Entity<'a>)>,
+    setters: &mut Vec<PendingSetter<'a>>,
   ) {
     let mut writable = false;
-    let call_setter_indeterminately = indeterminate || self.possible_values.len() > 1;
     for possible_value in &self.possible_values {
       match *possible_value {
-        ObjectPropertyValue::Field(_, false) => writable = true,
-        ObjectPropertyValue::Property(_, Some(setter)) => setters.push((
-          call_setter_indeterminately,
-          self.non_existent.collect(analyzer.factory),
+        ObjectPropertyValue::Field(_, readonly) if !readonly => writable = true,
+        ObjectPropertyValue::Property(_, Some(setter)) => setters.push(PendingSetter {
+          indeterminate: self.possible_values.len() > 1,
+          dep: self.non_existent.collect(analyzer.factory),
           setter,
-        )),
+        }),
         _ => {}
       }
     }
 
-    if !indeterminate {
-      // Remove all writable fields
-      self.possible_values = self
-        .possible_values
-        .iter()
-        .filter(|possible_value| !matches!(possible_value, ObjectPropertyValue::Field(_, false)))
-        .cloned()
-        .collect();
-      // This property must exist now
-      self.non_existent.force_clear();
-    }
-
     if writable {
+      if !indeterminate {
+        // Remove all writable fields
+        self.possible_values = self
+          .possible_values
+          .iter()
+          .filter(|possible_value| !matches!(possible_value, ObjectPropertyValue::Field(_, false)))
+          .cloned()
+          .collect();
+        // This property must exist now
+        self.non_existent.force_clear();
+      }
+
       self.possible_values.push(ObjectPropertyValue::Field(value, false));
+    }
+  }
+
+  pub fn lookup_setters(
+    &mut self,
+    analyzer: &Analyzer<'a>,
+    setters: &mut Vec<PendingSetter<'a>>,
+  ) -> Found {
+    let mut found_setter = false;
+    let mut found_others = false;
+    for possible_value in &self.possible_values {
+      if let ObjectPropertyValue::Property(_, Some(setter)) = *possible_value {
+        setters.push(PendingSetter {
+          indeterminate: self.possible_values.len() > 1,
+          dep: self.non_existent.collect(analyzer.factory),
+          setter,
+        });
+        found_setter = true;
+      } else {
+        found_others = false;
+      }
+    }
+    if found_others {
+      Found::Unknown
+    } else {
+      Found::known(found_setter)
     }
   }
 
@@ -147,13 +172,17 @@ impl<'a> ObjectProperty<'a> {
     self.non_existent.push(dep);
   }
 
-  pub fn consume(self, analyzer: &mut Analyzer<'a>) {
-    for possible_value in self.possible_values {
+  pub fn consume(&self, analyzer: &mut Analyzer<'a>, suspended: &mut Vec<Entity<'a>>) {
+    for &possible_value in &self.possible_values {
       match possible_value {
-        ObjectPropertyValue::Field(value, _) => analyzer.consume(value),
+        ObjectPropertyValue::Field(value, _) => suspended.push(value),
         ObjectPropertyValue::Property(getter, setter) => {
-          analyzer.consume(getter);
-          analyzer.consume(setter);
+          if let Some(getter) = getter {
+            suspended.push(getter);
+          }
+          if let Some(setter) = setter {
+            suspended.push(setter);
+          }
         }
       }
     }
@@ -161,7 +190,7 @@ impl<'a> ObjectProperty<'a> {
     self.non_existent.consume_all(analyzer);
 
     if let Some(key) = self.key {
-      analyzer.consume(key);
+      suspended.push(key);
     }
   }
 }

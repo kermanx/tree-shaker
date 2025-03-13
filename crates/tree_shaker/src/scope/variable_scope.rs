@@ -27,6 +27,7 @@ pub struct VariableScope<'a> {
   pub this: Option<Entity<'a>>,
   pub arguments: Option<(Entity<'a>, Vec<SymbolId>)>,
   pub exhaustive_callbacks: FxHashMap<SymbolId, FxHashSet<ExhaustiveCallback<'a>>>,
+  pub super_class: Option<Entity<'a>>,
 }
 
 impl fmt::Debug for VariableScope<'_> {
@@ -117,19 +118,18 @@ impl<'a> Analyzer<'a> {
   ) {
     let variable = self.scoping.variable.get_mut(id).variables.get_mut(&symbol).unwrap();
 
-    let variable_ref = variable.borrow();
-    if variable_ref.kind.is_redeclarable() {
+    let mut variable = variable.borrow_mut();
+    if variable.kind.is_redeclarable() {
       if let Some(value) = value {
-        drop(variable_ref);
+        drop(variable);
         self.write_on_scope(id, symbol, self.factory.computed(value, init_node));
       } else {
         // Do nothing
       }
-    } else if let Some(deps) = variable_ref.exhausted {
+    } else if let Some(deps) = variable.exhausted {
       deps.push(self, self.consumable((init_node, value)));
     } else {
-      drop(variable_ref);
-      variable.borrow_mut().value =
+      variable.value =
         Some(self.factory.computed(value.unwrap_or(self.factory.undefined), init_node));
       self.request_exhaustive_callbacks(false, (id, symbol));
     }
@@ -371,5 +371,16 @@ impl<'a> Analyzer<'a> {
       }
     }
     unreachable!()
+  }
+
+  pub fn get_super(&mut self) -> Entity<'a> {
+    for depth in (0..self.scoping.variable.stack.len()).rev() {
+      let scope = self.scoping.variable.get_from_depth(depth);
+      if let Some(super_class) = scope.super_class {
+        return super_class;
+      }
+    }
+    self.throw_builtin_error("Unsupported reference to 'super'");
+    self.factory.unknown()
   }
 }

@@ -32,6 +32,10 @@ impl<'a> Analyzer<'a> {
     &mut self,
     node: &'a Expression<'a>,
   ) -> Result<(usize, Entity<'a>, Option<Entity<'a>>, Entity<'a>), Entity<'a>> {
+    if matches!(node, Expression::Super(_)) {
+      return Ok((0, self.get_super(), None, self.get_this()));
+    }
+
     let dep = AstKind2::Callee(node);
     if let Some((member_expr, same_chain)) = unwrap_to_member_expression(node) {
       if same_chain {

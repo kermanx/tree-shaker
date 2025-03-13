@@ -11,12 +11,13 @@ use super::{
 };
 use crate::{
   analyzer::Analyzer,
-  builtins::Prototype,
-  consumable::Consumable,
+  builtins::BuiltinPrototype,
+  consumable::{Consumable, ConsumableTrait},
   dep::DepId,
   mangling::{is_literal_mangable, MangleAtom, UniquenessGroupId},
   scope::CfScopeId,
   use_consumed_flag,
+  utils::ast::AstKind2,
 };
 use oxc::semantic::SymbolId;
 pub use property::{ObjectProperty, ObjectPropertyValue};
@@ -28,8 +29,20 @@ type ObjectManglingGroupId<'a> = &'a Cell<Option<UniquenessGroupId>>;
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectPrototype<'a> {
   ImplicitOrNull,
-  Builtin(&'a Prototype<'a>),
+  Builtin(&'a BuiltinPrototype<'a>),
   Custom(&'a ObjectEntity<'a>),
+  Unknown(Consumable<'a>),
+}
+
+impl<'a> ConsumableTrait<'a> for ObjectPrototype<'a> {
+  fn consume(&self, analyzer: &mut Analyzer<'a>) {
+    match self {
+      ObjectPrototype::ImplicitOrNull => {}
+      ObjectPrototype::Builtin(_prototype) => {}
+      ObjectPrototype::Custom(object) => object.consume_as_prototype(analyzer),
+      ObjectPrototype::Unknown(dep) => dep.consume(analyzer),
+    }
+  }
 }
 
 #[derive(Debug)]
@@ -37,11 +50,12 @@ pub struct ObjectEntity<'a> {
   /// A built-in object is usually non-consumable
   pub consumable: bool,
   pub consumed: Cell<bool>,
+  pub consumed_as_prototype: Cell<bool>,
   // deps: RefCell<ConsumableCollector<'a>>,
   /// Where the object is created
   pub cf_scope: CfScopeId,
   pub object_id: SymbolId,
-  pub prototype: ObjectPrototype<'a>,
+  pub prototype: Cell<ObjectPrototype<'a>>,
   /// `None` if not mangable
   /// `Some(None)` if mangable at the beginning, but disabled later
   pub mangling_group: Option<ObjectManglingGroupId<'a>>,
@@ -63,12 +77,10 @@ impl<'a> EntityTrait<'a> for ObjectEntity<'a> {
 
     use_consumed_flag!(self);
 
-    self.disable_mangling(analyzer);
+    self.consume_as_prototype(analyzer);
 
-    for property in self.string_keyed.take().into_values() {
-      property.consume(analyzer);
-    }
-    self.unknown_keyed.take().consume(analyzer);
+    self.string_keyed.borrow_mut().clear();
+    self.unknown_keyed.take();
 
     analyzer.mark_object_consumed(self.cf_scope, self.object_id);
   }
@@ -230,7 +242,24 @@ impl<'a> EntityTrait<'a> for ObjectEntity<'a> {
 }
 
 impl<'a> ObjectEntity<'a> {
-  fn is_mangable(&self) -> bool {
+  fn consume_as_prototype(&self, analyzer: &mut Analyzer<'a>) {
+    if self.consumed_as_prototype.replace(true) {
+      return;
+    }
+
+    self.disable_mangling(analyzer);
+
+    self.prototype.get().consume(analyzer);
+
+    let mut suspended = vec![];
+    for property in self.string_keyed.borrow().values() {
+      property.consume(analyzer, &mut suspended);
+    }
+    self.unknown_keyed.borrow().consume(analyzer, &mut suspended);
+    analyzer.consume(suspended);
+  }
+
+  pub fn is_mangable(&self) -> bool {
     self.mangling_group.is_some_and(|group| group.get().is_some())
   }
 
@@ -273,35 +302,52 @@ impl<'a> Analyzer<'a> {
     self.allocator.alloc(ObjectEntity {
       consumable: true,
       consumed: Cell::new(false),
+      consumed_as_prototype: Cell::new(false),
       // deps: Default::default(),
       cf_scope: self.scoping.cf.current_id(),
       object_id: self.scoping.alloc_object_id(),
       string_keyed: RefCell::new(FxHashMap::default()),
       unknown_keyed: RefCell::new(ObjectProperty::default()),
       rest: RefCell::new(None),
-      prototype,
+      prototype: Cell::new(prototype),
       mangling_group,
     })
   }
 
-  pub fn new_function_object(&mut self) -> &'a ObjectEntity<'a> {
-    let object =
-      self.new_empty_object(ObjectPrototype::Builtin(&self.builtins.prototypes.function), None);
-    object.string_keyed.borrow_mut().insert(
+  pub fn new_function_object(
+    &mut self,
+    mangle_node: Option<AstKind2<'a>>,
+  ) -> (&'a ObjectEntity<'a>, &'a ObjectEntity<'a>) {
+    let mangling_group = if let Some(mangle_node) = mangle_node {
+      let (m1, m2) = *self
+        .load_data::<Option<(ObjectManglingGroupId, ObjectManglingGroupId)>>(mangle_node)
+        .get_or_insert_with(|| {
+          (self.new_object_mangling_group(), self.new_object_mangling_group())
+        });
+      (Some(m1), Some(m2))
+    } else {
+      (None, None)
+    };
+    let prototype = self.new_empty_object(
+      ObjectPrototype::Builtin(&self.builtins.prototypes.object),
+      mangling_group.0,
+    );
+    let statics = self.new_empty_object(
+      ObjectPrototype::Builtin(&self.builtins.prototypes.function),
+      mangling_group.1,
+    );
+    statics.string_keyed.borrow_mut().insert(
       "prototype",
       ObjectProperty {
         definite: true,
         enumerable: false,
-        possible_values: vec![ObjectPropertyValue::Field(
-          self.new_empty_object(ObjectPrototype::Builtin(&self.builtins.prototypes.object), None),
-          false,
-        )],
+        possible_values: vec![ObjectPropertyValue::Field(prototype, false)],
         non_existent: Default::default(),
-        key: None,
-        mangling: None,
+        key: Some(self.factory.string("prototype")),
+        mangling: Some(self.mangler.builtin_atom),
       },
     );
-    self.allocator.alloc(object)
+    (statics, prototype)
   }
 
   pub fn new_object_mangling_group(&mut self) -> ObjectManglingGroupId<'a> {

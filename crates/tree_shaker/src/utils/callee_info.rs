@@ -16,6 +16,18 @@ pub enum CalleeNode<'a> {
   Module,
 }
 
+impl<'a> From<CalleeNode<'a>> for AstKind2<'a> {
+  fn from(val: CalleeNode<'a>) -> Self {
+    match val {
+      CalleeNode::Function(node) => AstKind2::Function(node),
+      CalleeNode::ArrowFunctionExpression(node) => AstKind2::ArrowFunctionExpression(node),
+      CalleeNode::ClassStatics(node) => AstKind2::Class(node),
+      CalleeNode::ClassConstructor(node) => AstKind2::ClassConstructor(node),
+      CalleeNode::Root | CalleeNode::Module => AstKind2::Environment,
+    }
+  }
+}
+
 impl GetSpan for CalleeNode<'_> {
   fn span(&self) -> Span {
     match self {
@@ -61,13 +73,7 @@ pub struct CalleeInfo<'a> {
 
 impl<'a> CalleeInfo<'a> {
   pub fn into_node(self) -> AstKind2<'a> {
-    match self.node {
-      CalleeNode::Function(node) => AstKind2::Function(node),
-      CalleeNode::ArrowFunctionExpression(node) => AstKind2::ArrowFunctionExpression(node),
-      CalleeNode::ClassStatics(node) => AstKind2::Class(node),
-      CalleeNode::ClassConstructor(node) => AstKind2::Class(node),
-      CalleeNode::Root | CalleeNode::Module => AstKind2::Environment,
-    }
+    self.node.into()
   }
 
   pub fn span(&self) -> Span {

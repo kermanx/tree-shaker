@@ -157,6 +157,14 @@ impl<'a> EntityTrait<'a> for ReactElementEntity<'a> {
     self
   }
 
+  fn get_constructor_prototype(
+    &'a self,
+    _analyzer: &Analyzer<'a>,
+    _dep: Consumable<'a>,
+  ) -> Option<(Consumable<'a>, ObjectPrototype<'a>, ObjectPrototype<'a>)> {
+    None
+  }
+
   fn test_typeof(&self) -> TypeofResult {
     TypeofResult::_Unknown
   }

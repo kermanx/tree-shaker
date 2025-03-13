@@ -1,5 +1,6 @@
 use super::{
-  consumed_object, Entity, EntityTrait, EnumeratedProperties, IteratedElements, TypeofResult,
+  consumed_object, Entity, EntityTrait, EnumeratedProperties, IteratedElements, ObjectPrototype,
+  TypeofResult,
 };
 use crate::{analyzer::Analyzer, consumable::Consumable, use_consumed_flag};
 use std::cell::Cell;
@@ -138,6 +139,14 @@ impl<'a> EntityTrait<'a> for ArgumentsEntity<'a> {
   }
 
   fn get_to_jsx_child(&'a self, _analyzer: &Analyzer<'a>) -> Entity<'a> {
+    unreachable!()
+  }
+
+  fn get_constructor_prototype(
+    &'a self,
+    _analyzer: &Analyzer<'a>,
+    _dep: Consumable<'a>,
+  ) -> Option<(Consumable<'a>, ObjectPrototype<'a>, ObjectPrototype<'a>)> {
     unreachable!()
   }
 

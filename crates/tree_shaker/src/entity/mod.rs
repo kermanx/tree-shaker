@@ -1,7 +1,6 @@
 mod arguments;
 mod array;
 mod builtin_fn;
-mod class;
 mod computed;
 mod consumed_object;
 mod factory;
@@ -22,7 +21,6 @@ use crate::{
   consumable::{Consumable, ConsumableTrait},
 };
 pub use builtin_fn::PureBuiltinFnEntity;
-pub use class::ClassEntity;
 pub use factory::EntityFactory;
 pub use literal::LiteralEntity;
 pub use object::{ObjectEntity, ObjectProperty, ObjectPropertyValue, ObjectPrototype};
@@ -105,6 +103,13 @@ pub trait EntityTrait<'a>: Debug {
   }
   /// Returns vec![(definite, key)]
   fn get_own_keys(&'a self, _analyzer: &Analyzer<'a>) -> Option<Vec<(bool, Entity<'a>)>> {
+    None
+  }
+  fn get_constructor_prototype(
+    &'a self,
+    _analyzer: &Analyzer<'a>,
+    _dep: Consumable<'a>,
+  ) -> Option<(Consumable<'a>, ObjectPrototype<'a>, ObjectPrototype<'a>)> {
     None
   }
 

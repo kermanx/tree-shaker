@@ -1,0 +1,27 @@
+---
+source: crates/tree_shaker/tests/mod.rs
+expression: do_tree_shake(input)
+input_file: crates/tree_shaker/tests/fixtures/class/consumed.js
+---
+export const A = class {
+	[2] = 2;
+	get [6]() {
+		return 6;
+	}
+	set x(v) {
+		this._x = v;
+	}
+};
+export const B = class extends unknown(2) {
+	constructor(a, b) {
+		super(a);
+		b();
+	}
+	fn(a) {
+		a = console.log;
+		a();
+	}
+};
+export default class {
+	a = 1;
+}

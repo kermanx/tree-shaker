@@ -1,4 +1,6 @@
-use super::{Entity, EntityTrait, EnumeratedProperties, IteratedElements, TypeofResult};
+use super::{
+  Entity, EntityTrait, EnumeratedProperties, IteratedElements, ObjectPrototype, TypeofResult,
+};
 use crate::{analyzer::Analyzer, consumable::Consumable};
 
 #[derive(Debug, Clone)]
@@ -120,6 +122,14 @@ impl<'a> EntityTrait<'a> for LogicalResultEntity<'a> {
 
   fn get_own_keys(&'a self, analyzer: &Analyzer<'a>) -> Option<Vec<(bool, Entity<'a>)>> {
     self.value.get_own_keys(analyzer)
+  }
+
+  fn get_constructor_prototype(
+    &'a self,
+    analyzer: &Analyzer<'a>,
+    dep: Consumable<'a>,
+  ) -> Option<(Consumable<'a>, ObjectPrototype<'a>, ObjectPrototype<'a>)> {
+    self.value.get_constructor_prototype(analyzer, dep)
   }
 
   fn test_typeof(&self) -> TypeofResult {

@@ -1,7 +1,7 @@
-use super::{object::create_object_prototype, Prototype};
+use super::{object::create_object_prototype, BuiltinPrototype};
 use crate::{entity::EntityFactory, init_prototype};
 
-pub fn create_string_prototype<'a>(factory: &EntityFactory<'a>) -> Prototype<'a> {
+pub fn create_string_prototype<'a>(factory: &EntityFactory<'a>) -> BuiltinPrototype<'a> {
   init_prototype!("String", create_object_prototype(factory), {
     "anchor" => factory.pure_fn_returns_string,
     "at" => factory.pure_fn_returns_unknown,

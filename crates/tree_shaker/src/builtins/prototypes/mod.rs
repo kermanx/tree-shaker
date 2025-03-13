@@ -24,19 +24,19 @@ use rustc_hash::FxHashMap;
 use super::Builtins;
 
 #[derive(Default)]
-pub struct Prototype<'a> {
+pub struct BuiltinPrototype<'a> {
   name: &'static str,
   string_keyed: FxHashMap<&'static str, Entity<'a>>,
   symbol_keyed: FxHashMap<SymbolId, Entity<'a>>,
 }
 
-impl<'a> fmt::Debug for Prototype<'a> {
+impl<'a> fmt::Debug for BuiltinPrototype<'a> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.write_str(format!("Prototype({})", self.name).as_str())
   }
 }
 
-impl<'a> Prototype<'a> {
+impl<'a> BuiltinPrototype<'a> {
   pub fn with_name(mut self, name: &'static str) -> Self {
     self.name = name;
     self
@@ -91,17 +91,17 @@ impl<'a> Prototype<'a> {
 }
 
 pub struct BuiltinPrototypes<'a> {
-  pub array: Prototype<'a>,
-  pub bigint: Prototype<'a>,
-  pub boolean: Prototype<'a>,
-  pub function: Prototype<'a>,
-  pub null: Prototype<'a>,
-  pub number: Prototype<'a>,
-  pub object: Prototype<'a>,
-  pub promise: Prototype<'a>,
-  pub regexp: Prototype<'a>,
-  pub string: Prototype<'a>,
-  pub symbol: Prototype<'a>,
+  pub array: BuiltinPrototype<'a>,
+  pub bigint: BuiltinPrototype<'a>,
+  pub boolean: BuiltinPrototype<'a>,
+  pub function: BuiltinPrototype<'a>,
+  pub null: BuiltinPrototype<'a>,
+  pub number: BuiltinPrototype<'a>,
+  pub object: BuiltinPrototype<'a>,
+  pub promise: BuiltinPrototype<'a>,
+  pub regexp: BuiltinPrototype<'a>,
+  pub string: BuiltinPrototype<'a>,
+  pub symbol: BuiltinPrototype<'a>,
 }
 
 impl<'a> Builtins<'a> {
