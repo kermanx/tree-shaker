@@ -1,3 +1,5 @@
+use oxc::allocator::{self, Allocator};
+
 use super::{try_scope::TryScope, variable_scope::VariableScopeId};
 use crate::{
   analyzer::Analyzer, consumable::ConsumeTrait, dep::DepId, entity::Entity, utils::CalleeInfo,
@@ -21,7 +23,7 @@ pub struct CallScope<'a> {
 }
 
 impl<'a> CallScope<'a> {
-  pub fn new(
+  pub fn new_in(
     call_id: DepId,
     callee: CalleeInfo<'a>,
     old_variable_scope_stack: Vec<VariableScopeId>,
@@ -29,6 +31,7 @@ impl<'a> CallScope<'a> {
     body_variable_scope: VariableScopeId,
     is_async: bool,
     is_generator: bool,
+    allocator: &'a Allocator,
   ) -> Self {
     CallScope {
       call_id,
@@ -39,7 +42,7 @@ impl<'a> CallScope<'a> {
       returned_values: Vec::new(),
       is_async,
       is_generator,
-      try_scopes: vec![TryScope::new(cf_scope_depth)],
+      try_scopes: vec![TryScope::new_in(cf_scope_depth, allocator)],
       need_consume_arguments: false,
 
       #[cfg(feature = "flame")]
@@ -72,7 +75,10 @@ impl<'a> CallScope<'a> {
     let value = if self.returned_values.is_empty() {
       analyzer.factory.undefined
     } else {
-      analyzer.factory.union(self.returned_values)
+      analyzer.factory.union(allocator::Vec::from_iter_in(
+        self.returned_values.iter().copied(),
+        analyzer.allocator,
+      ))
     };
 
     let value =

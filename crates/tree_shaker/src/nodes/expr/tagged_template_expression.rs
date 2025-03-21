@@ -4,8 +4,8 @@ use crate::{
 };
 use oxc::{
   ast::{
-    ast::{Expression, TaggedTemplateExpression, TemplateLiteral},
     NONE,
+    ast::{Expression, TaggedTemplateExpression, TemplateLiteral},
   },
   span::GetSpan,
 };
@@ -20,7 +20,7 @@ impl<'a> Analyzer<'a> {
       Err(v) => return v,
     };
 
-    let mut arguments = vec![(false, self.factory.unknown())];
+    let mut arguments = self.factory.vec1((false, self.factory.unknown()));
 
     for expr in &node.quasi.expressions {
       let value = self.exec_expression(expr);

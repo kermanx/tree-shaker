@@ -1,8 +1,10 @@
+use oxc::allocator;
+
 use super::ObjectEntity;
 use crate::{
   analyzer::Analyzer,
-  consumable::Consumable,
-  entity::{consumed_object, object::ObjectPrototype, Entity, LiteralEntity},
+  consumable::{Consumable, ConsumableVec},
+  entity::{Entity, LiteralEntity, consumed_object, object::ObjectPrototype},
   mangling::MangleAtom,
   scope::CfScopeKind,
 };
@@ -11,7 +13,7 @@ pub(crate) struct GetPropertyContext<'a> {
   pub key: Entity<'a>,
   pub values: Vec<Entity<'a>>,
   pub getters: Vec<Entity<'a>>,
-  pub extra_deps: Vec<Consumable<'a>>,
+  pub extra_deps: ConsumableVec<'a>,
 }
 
 impl<'a> ObjectEntity<'a> {
@@ -28,8 +30,12 @@ impl<'a> ObjectEntity<'a> {
     analyzer.mark_object_property_exhaustive_read(self.cf_scope, self.object_id);
 
     let mut mangable = false;
-    let mut context =
-      GetPropertyContext { key, values: vec![], getters: vec![], extra_deps: vec![] };
+    let mut context = GetPropertyContext {
+      key,
+      values: vec![],
+      getters: vec![],
+      extra_deps: analyzer.factory.vec(),
+    };
 
     let mut check_rest = false;
     if let Some(key_literals) = key.get_to_literals(analyzer) {
@@ -73,7 +79,7 @@ impl<'a> ObjectEntity<'a> {
       let indeterminate = check_rest || !context.values.is_empty() || context.getters.len() > 1;
       analyzer.push_cf_scope_with_deps(
         CfScopeKind::Dependent,
-        vec![if mangable { dep } else { analyzer.consumable((dep, key)) }],
+        analyzer.factory.vec1(if mangable { dep } else { analyzer.consumable((dep, key)) }),
         if indeterminate { None } else { Some(false) },
       );
       for getter in context.getters {
@@ -86,7 +92,10 @@ impl<'a> ObjectEntity<'a> {
       analyzer.pop_cf_scope();
     }
 
-    let value = analyzer.factory.try_union(context.values).unwrap_or(analyzer.factory.undefined);
+    let value = analyzer
+      .factory
+      .try_union(allocator::Vec::from_iter_in(context.values.iter().copied(), analyzer.allocator))
+      .unwrap_or(analyzer.factory.undefined);
     if mangable {
       analyzer.factory.computed(value, (context.extra_deps, dep))
     } else {

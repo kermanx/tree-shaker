@@ -1,6 +1,6 @@
 use super::{
-  consumed_object, never::NeverEntity, Entity, EnumeratedProperties, IteratedElements,
-  TypeofResult, ValueTrait,
+  Entity, EnumeratedProperties, IteratedElements, TypeofResult, ValueTrait, consumed_object,
+  never::NeverEntity,
 };
 use crate::{
   analyzer::Analyzer,
@@ -14,7 +14,7 @@ use oxc::{
   allocator::Allocator,
   ast::ast::{BigintBase, Expression, NumberBase, UnaryOperator},
   semantic::SymbolId,
-  span::{Atom, Span, SPAN},
+  span::{Atom, SPAN, Span},
 };
 use oxc_ecmascript::StringToNumber;
 use oxc_syntax::number::ToJsString;
@@ -66,7 +66,7 @@ impl<'a> ValueTrait<'a> for LiteralEntity<'a> {
       let prototype = self.get_prototype(analyzer);
       let dep = analyzer.consumable((self, dep, key));
       if let Some(key_literals) = key.get_to_literals(analyzer) {
-        let mut values = vec![];
+        let mut values = analyzer.factory.vec();
         for key_literal in key_literals {
           if let Some(property) = self.get_known_instance_property(analyzer, key_literal) {
             values.push(property);
@@ -114,8 +114,8 @@ impl<'a> ValueTrait<'a> for LiteralEntity<'a> {
             .map(|(i, c)| {
               (
                 true,
-                analyzer.factory.string(analyzer.allocator.alloc(i.to_string())),
-                analyzer.factory.string(analyzer.allocator.alloc(c.to_string())),
+                analyzer.factory.string(analyzer.allocator.alloc_str(&i.to_string())),
+                analyzer.factory.string(analyzer.allocator.alloc_str(&c.to_string())),
               )
             })
             .collect(),
@@ -345,16 +345,16 @@ impl<'a> LiteralEntity<'a> {
       LiteralEntity::Symbol(_, _) => unreachable!("Cannot build expression for Symbol"),
       LiteralEntity::Infinity(positive) => {
         if *positive {
-          ast_builder.expression_identifier_reference(span, "Infinity")
+          ast_builder.expression_identifier(span, "Infinity")
         } else {
           ast_builder.expression_unary(
             span,
             UnaryOperator::UnaryNegation,
-            ast_builder.expression_identifier_reference(span, "Infinity"),
+            ast_builder.expression_identifier(span, "Infinity"),
           )
         }
       }
-      LiteralEntity::NaN => ast_builder.expression_identifier_reference(span, "NaN"),
+      LiteralEntity::NaN => ast_builder.expression_identifier(span, "NaN"),
       LiteralEntity::Null => ast_builder.expression_null_literal(span),
       LiteralEntity::Undefined => ast_builder.expression_unary(
         span,
@@ -387,7 +387,7 @@ impl<'a> LiteralEntity<'a> {
     match self {
       LiteralEntity::String(value, _) => value,
       LiteralEntity::Number(value, str_rep) => {
-        str_rep.unwrap_or_else(|| allocator.alloc(value.0.to_js_string()))
+        str_rep.unwrap_or_else(|| allocator.alloc_str(&value.0.to_js_string()))
       }
       LiteralEntity::BigInt(value) => value,
       LiteralEntity::Boolean(value) => {

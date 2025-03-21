@@ -1,3 +1,5 @@
+use oxc::allocator;
+
 use crate::entity::{Entity, EntityFactory};
 
 pub fn create_react_forward_ref_impl<'a>(factory: &'a EntityFactory<'a>) -> Entity<'a> {
@@ -15,7 +17,10 @@ pub fn create_react_forward_ref_impl<'a>(factory: &'a EntityFactory<'a>) -> Enti
           analyzer,
           dep,
           this,
-          analyzer.factory.arguments(vec![(false, props), (false, r#ref)]),
+          analyzer.factory.arguments(allocator::Vec::from_array_in(
+            [(false, props), (false, r#ref)],
+            analyzer.allocator,
+          )),
         )
       },
     )

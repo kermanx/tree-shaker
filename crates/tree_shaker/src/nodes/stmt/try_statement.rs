@@ -18,7 +18,7 @@ impl<'a> Analyzer<'a> {
       );
       None
     } else {
-      try_scope.may_throw.then(|| try_scope.thrown_values.clone())
+      try_scope.may_throw.then_some(try_scope.thrown_values)
     };
 
     if let Some(finalizer) = &node.finalizer {
@@ -27,7 +27,7 @@ impl<'a> Analyzer<'a> {
 
     if !self.cf_scope().must_exited() {
       if let Some(uncaught) = uncaught {
-        self.forward_throw(uncaught.clone());
+        self.forward_throw(uncaught);
       }
     }
   }

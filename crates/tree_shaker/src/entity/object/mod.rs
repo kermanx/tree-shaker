@@ -6,23 +6,27 @@ mod property;
 mod set;
 
 use super::{
-  consumed_object, Entity, EnumeratedProperties, IteratedElements, LiteralEntity, TypeofResult,
-  ValueTrait,
+  Entity, EnumeratedProperties, IteratedElements, LiteralEntity, TypeofResult, ValueTrait,
+  consumed_object,
 };
 use crate::{
   analyzer::Analyzer,
   builtins::BuiltinPrototype,
-  consumable::{Consumable, ConsumableTrait},
+  consumable::{Consumable, ConsumableCollector, ConsumableTrait},
   dep::DepId,
-  mangling::{is_literal_mangable, MangleAtom, UniquenessGroupId},
+  mangling::{MangleAtom, UniquenessGroupId, is_literal_mangable},
   scope::CfScopeId,
   use_consumed_flag,
   utils::ast::AstKind2,
 };
+use oxc::allocator;
 use oxc_index::define_index_type;
 pub use property::{ObjectProperty, ObjectPropertyId, ObjectPropertyValue};
-use rustc_hash::{FxHashMap, FxHashSet};
-use std::cell::{Cell, RefCell};
+use rustc_hash::FxHashSet;
+use std::{
+  cell::{Cell, RefCell},
+  fmt::Debug,
+};
 
 type ObjectManglingGroupId<'a> = &'a Cell<Option<UniquenessGroupId>>;
 
@@ -49,7 +53,6 @@ define_index_type! {
   pub struct ObjectId = u32;
 }
 
-#[derive(Debug)]
 pub struct ObjectEntity<'a> {
   /// A built-in object is usually non-consumable
   pub consumable: bool,
@@ -65,12 +68,18 @@ pub struct ObjectEntity<'a> {
   pub mangling_group: Option<ObjectManglingGroupId<'a>>,
 
   /// Properties keyed by known string
-  pub string_keyed: RefCell<FxHashMap<&'a str, ObjectProperty<'a>>>,
+  pub string_keyed: RefCell<allocator::HashMap<'a, &'a str, ObjectProperty<'a>>>,
   /// Properties keyed by unknown value
   pub unknown_keyed: RefCell<ObjectProperty<'a>>,
   /// Properties keyed by unknown value, but not included in `string_keyed`
   pub rest: RefCell<Option<ObjectProperty<'a>>>,
   // TODO: symbol_keyed
+}
+
+impl Debug for ObjectEntity<'_> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("ObjectEntity").finish()
+  }
 }
 
 impl<'a> ValueTrait<'a> for ObjectEntity<'a> {
@@ -84,7 +93,7 @@ impl<'a> ValueTrait<'a> for ObjectEntity<'a> {
     self.consume_as_prototype(analyzer);
 
     self.string_keyed.borrow_mut().clear();
-    self.unknown_keyed.take();
+    self.unknown_keyed.replace_with(|_| ObjectProperty::new_in(analyzer.allocator));
 
     analyzer.mark_object_consumed(self.cf_scope, self.object_id);
   }
@@ -209,18 +218,17 @@ impl<'a> ValueTrait<'a> for ObjectEntity<'a> {
       } else {
         analyzer.factory.computed(key_entity, property.non_existent.collect(analyzer.factory))
       };
-      let key_entity = analyzer.factory.computed(
-        key_entity,
-        property
-          .possible_values
-          .iter()
-          .map(|value| match value {
+      let key_entity = analyzer.factory.computed(key_entity, {
+        let mut deps = analyzer.factory.vec();
+        for value in &property.possible_values {
+          deps.push(match value {
             ObjectPropertyValue::Field(value, _) => *value,
             ObjectPropertyValue::Property(Some(getter), _) => *getter,
             ObjectPropertyValue::Property(None, _) => analyzer.factory.undefined,
           })
-          .collect::<Vec<_>>(),
-      );
+        }
+        deps
+      });
       keys.push((property.definite, key_entity));
     }
     Some(keys)
@@ -249,7 +257,7 @@ impl<'a> ObjectEntity<'a> {
 
     self.prototype.get().consume(analyzer);
 
-    let mut suspended = vec![];
+    let mut suspended = analyzer.factory.vec();
     for property in self.string_keyed.borrow().values() {
       property.consume(analyzer, &mut suspended);
     }
@@ -304,8 +312,8 @@ impl<'a> Analyzer<'a> {
       // deps: Default::default(),
       cf_scope: self.scoping.cf.current_id(),
       object_id: self.scoping.alloc_object_id(),
-      string_keyed: RefCell::new(FxHashMap::default()),
-      unknown_keyed: RefCell::new(ObjectProperty::default()),
+      string_keyed: RefCell::new(allocator::HashMap::new_in(self.allocator)),
+      unknown_keyed: RefCell::new(ObjectProperty::new_in(self.allocator)),
       rest: RefCell::new(None),
       prototype: Cell::new(prototype),
       mangling_group,
@@ -339,8 +347,8 @@ impl<'a> Analyzer<'a> {
       ObjectProperty {
         definite: true,
         enumerable: false,
-        possible_values: vec![ObjectPropertyValue::Field((&*prototype).into(), false)],
-        non_existent: Default::default(),
+        possible_values: self.factory.vec1(ObjectPropertyValue::Field((&*prototype).into(), false)),
+        non_existent: ConsumableCollector::new(self.factory.vec()),
         key: Some(self.factory.string("prototype")),
         mangling: Some(self.mangler.builtin_atom),
       },

@@ -30,15 +30,15 @@ impl<'a> From<AstKind2<'a>> for DepId {
   }
 }
 
-impl<'a> From<DepId> for AstKind2<'a> {
+impl From<DepId> for AstKind2<'_> {
   fn from(val: DepId) -> Self {
     unsafe { std::mem::transmute(val.0) }
   }
 }
 
-impl<'a> GetSpan for DepId {
+impl GetSpan for DepId {
   fn span(&self) -> Span {
-    let ast_kind: AstKind2<'a> = (*self).into();
+    let ast_kind: AstKind2<'_> = (*self).into();
     ast_kind.span()
   }
 }
@@ -64,7 +64,7 @@ impl ReferredDeps {
   }
 }
 
-impl<'a> Analyzer<'a> {
+impl Analyzer<'_> {
   pub fn refer_dep(&mut self, dep: impl Into<DepId>) {
     self.referred_deps.refer_dep(dep);
   }
@@ -74,7 +74,7 @@ impl<'a> Analyzer<'a> {
   }
 }
 
-impl<'a> Transformer<'a> {
+impl Transformer<'_> {
   pub fn is_referred(&self, dep: impl Into<DepId>) -> bool {
     self.referred_deps.is_referred(dep)
   }

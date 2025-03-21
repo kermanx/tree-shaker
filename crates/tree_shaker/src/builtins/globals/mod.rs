@@ -4,7 +4,7 @@ mod symbol_constructor;
 
 use super::Builtins;
 
-impl<'a> Builtins<'a> {
+impl Builtins<'_> {
   pub fn init_globals(&mut self) {
     self.init_global_constants();
     self.init_object_constructor();

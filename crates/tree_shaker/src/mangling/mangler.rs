@@ -1,4 +1,4 @@
-use super::{utils::get_mangled_name, MangleAtom};
+use super::{MangleAtom, utils::get_mangled_name};
 use oxc::allocator::Allocator;
 use oxc_index::IndexVec;
 use rustc_hash::FxHashSet;
@@ -75,7 +75,7 @@ impl<'a> Mangler<'a> {
           for &index in uniqueness_groups {
             self.uniqueness_groups[index].1 = n + 1;
           }
-          self.allocator.alloc(name)
+          self.allocator.alloc_str(&name)
         };
         self.atoms[atom] = AtomState::Constant(resolved);
         Some(resolved)
@@ -109,7 +109,7 @@ impl<'a> Mangler<'a> {
       for index in related_uniq_groups {
         uniqueness_groups[index].1 = n + 1;
       }
-      self.allocator.alloc(name)
+      self.allocator.alloc_str(&name)
     })
   }
 }

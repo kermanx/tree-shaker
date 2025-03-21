@@ -1,8 +1,11 @@
 use super::{
-  consumed_object, Entity, EnumeratedProperties, IteratedElements, TypeofResult, ValueTrait,
+  Entity, EnumeratedProperties, IteratedElements, TypeofResult, ValueTrait, consumed_object,
 };
 use crate::{
-  analyzer::Analyzer, consumable::Consumable, entity::ObjectPrototype, use_consumed_flag,
+  analyzer::Analyzer,
+  consumable::{Consumable, ConsumableVec},
+  entity::ObjectPrototype,
+  use_consumed_flag,
 };
 use std::cell::{Cell, RefCell};
 
@@ -11,14 +14,14 @@ pub struct ReactElementEntity<'a> {
   pub consumed: Cell<bool>,
   pub tag: Entity<'a>,
   pub props: Entity<'a>,
-  pub deps: RefCell<Vec<Consumable<'a>>>,
+  pub deps: RefCell<ConsumableVec<'a>>,
 }
 
 impl<'a> ValueTrait<'a> for ReactElementEntity<'a> {
   fn consume(&'a self, analyzer: &mut Analyzer<'a>) {
     use_consumed_flag!(self);
 
-    analyzer.consume(self.deps.take());
+    analyzer.consume(&self.deps);
 
     let tag = self.tag;
     let props = self.props;

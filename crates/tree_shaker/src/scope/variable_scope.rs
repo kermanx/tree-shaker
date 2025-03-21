@@ -3,7 +3,7 @@ use crate::{
   analyzer::Analyzer, ast::DeclarationKind, consumable::LazyConsumable, entity::Entity,
   utils::ast::AstKind2,
 };
-use oxc::semantic::SymbolId;
+use oxc::{allocator::FromIn, semantic::SymbolId, span::Atom};
 use oxc_index::define_index_type;
 use rustc_hash::FxHashMap;
 use std::{cell::RefCell, fmt};
@@ -301,7 +301,7 @@ impl<'a> Analyzer<'a> {
     self.declare_on_scope(variable_scope, kind, symbol, decl_node, fn_value);
 
     if exporting {
-      let name = self.semantic().symbols().get_name(symbol).into();
+      let name = Atom::from_in(self.semantic().scoping().symbol_name(symbol), self.allocator);
       self.module_info_mut().named_exports.insert(name, (variable_scope, symbol));
     }
 
@@ -346,7 +346,7 @@ impl<'a> Analyzer<'a> {
   }
 
   fn mark_unresolved_reference(&mut self, symbol: SymbolId) {
-    if self.semantic().symbols().get_flags(symbol).is_function_scoped_declaration() {
+    if self.semantic().scoping().symbol_flags(symbol).is_function_scoped_declaration() {
       self.mark_untracked_on_scope(symbol);
     } else {
       self.throw_builtin_error("Unresolved identifier reference");

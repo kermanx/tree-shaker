@@ -5,7 +5,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct ManglingDep<'a> {
   pub deps: (Entity<'a>, Entity<'a>),
-  pub constraint: &'a MangleConstraint,
+  pub constraint: MangleConstraint<'a>,
 }
 
 impl<'a> ConsumableTrait<'a> for ManglingDep<'a> {

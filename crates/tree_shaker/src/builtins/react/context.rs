@@ -5,7 +5,7 @@ use crate::{
   init_object,
   scope::exhaustive::ExhaustiveDepId,
 };
-use oxc_index::{define_index_type, IndexVec};
+use oxc_index::{IndexVec, define_index_type};
 use std::mem;
 
 #[derive(Debug)]
@@ -53,7 +53,7 @@ pub fn create_react_create_context_impl<'a>(factory: &'a EntityFactory<'a>) -> E
       dep,
     });
 
-    init_object!(context, {
+    init_object!(context, factory, {
       "__#internal__consumed_hook" => analyzer.factory.computed_unknown(context_id),
       "__#internal__context_id" => analyzer.serialize_internal_id(context_id),
       "Provider" => create_react_context_provider_impl(analyzer, context_id),
@@ -69,11 +69,13 @@ impl<'a> ConsumableTrait<'a> for ContextId {
     let data = &mut analyzer.builtins.react_data.contexts[*self];
     data.consumed = true;
     let default_value = data.default_value;
-    let stack = mem::take(&mut data.stack);
     let dep = data.dep;
+    let stack = mem::take(&mut data.stack);
     analyzer.consume(default_value);
-    analyzer.consume(stack);
     analyzer.consume(dep);
+    for value in stack {
+      analyzer.consume(value);
+    }
   }
 }
 

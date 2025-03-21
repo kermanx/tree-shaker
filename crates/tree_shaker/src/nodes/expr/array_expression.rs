@@ -8,7 +8,7 @@ impl<'a> Analyzer<'a> {
   pub fn exec_array_expression(&mut self, node: &'a ArrayExpression<'a>) -> Entity<'a> {
     let array = self.new_empty_array();
 
-    let mut rest = vec![];
+    let mut rest = self.factory.vec();
 
     for element in &node.elements {
       match element {

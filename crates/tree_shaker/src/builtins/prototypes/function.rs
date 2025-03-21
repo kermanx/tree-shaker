@@ -1,4 +1,4 @@
-use super::{object::create_object_prototype, BuiltinPrototype};
+use super::{BuiltinPrototype, object::create_object_prototype};
 use crate::{
   entity::{EntityFactory, ObjectId},
   init_prototype,

@@ -103,11 +103,7 @@ impl<'a> Transformer<'a> {
           let (_, maybe_left, _) =
             self.get_conditional_result(AstKind2::LogicalAssignmentExpressionLeft(node));
 
-          if maybe_left {
-            *operator
-          } else {
-            AssignmentOperator::Assign
-          }
+          if maybe_left { *operator } else { AssignmentOperator::Assign }
         } else {
           *operator
         },

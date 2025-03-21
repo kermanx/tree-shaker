@@ -8,10 +8,9 @@ use crate::{
   utils::{CalleeInfo, CalleeNode},
 };
 use oxc::ast::{
-  ast::{ArrowFunctionExpression, Expression},
   NONE,
+  ast::{ArrowFunctionExpression, Expression},
 };
-use std::rc::Rc;
 
 impl<'a> Analyzer<'a> {
   pub fn exec_arrow_function_expression(
@@ -26,18 +25,11 @@ impl<'a> Analyzer<'a> {
     callee: CalleeInfo<'a>,
     call_dep: Consumable<'a>,
     node: &'a ArrowFunctionExpression<'a>,
-    variable_scopes: Rc<Vec<VariableScopeId>>,
+    variable_scopes: &'a [VariableScopeId],
     args: Entity<'a>,
     consume: bool,
   ) -> Entity<'a> {
-    self.push_call_scope(
-      callee,
-      call_dep,
-      variable_scopes.as_ref().clone(),
-      node.r#async,
-      false,
-      consume,
-    );
+    self.push_call_scope(callee, call_dep, variable_scopes.to_vec(), node.r#async, false, consume);
 
     self.exec_formal_parameters(&node.params, args, DeclarationKind::ArrowFunctionParameter);
     if node.expression {

@@ -1,8 +1,8 @@
 use crate::{analyzer::Analyzer, ast::DeclarationKind, entity::Entity, transformer::Transformer};
 use oxc::{
   ast::{
-    ast::{BindingPatternKind, FormalParameter, FormalParameters},
     NONE,
+    ast::{BindingPatternKind, FormalParameter, FormalParameters},
   },
   span::{GetSpan, SPAN},
 };

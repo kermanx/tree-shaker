@@ -9,7 +9,7 @@ use oxc::span::Span;
 use rustc_hash::FxHashMap;
 use std::{cell::RefCell, rc::Rc, vec};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ReactDependenciesData<'a> {
   pub collectors: Vec<ConsumableCollector<'a, Entity<'a>>>,
   pub rest_collector: ConsumableCollector<'a, Entity<'a>>,
@@ -33,11 +33,24 @@ pub fn check_dependencies<'a>(
   let (elements, rest, iterate_dep) = current.iterate(analyzer, dep);
 
   let span = (analyzer.current_module(), analyzer.current_span());
-  let data = analyzer.builtins.react_data.dependencies.entry(span).or_default().clone();
+  let data = analyzer
+    .builtins
+    .react_data
+    .dependencies
+    .entry(span)
+    .or_insert_with(|| {
+      Rc::new(RefCell::new(ReactDependenciesData {
+        collectors: vec![],
+        rest_collector: ConsumableCollector::new(factory.vec()),
+        extra_collector: ConsumableCollector::new(factory.vec()),
+        previous: None,
+      }))
+    })
+    .clone();
   let mut data = data.borrow_mut();
 
   if data.collectors.len() <= elements.len() {
-    data.collectors.resize_with(elements.len(), ConsumableCollector::default);
+    data.collectors.resize_with(elements.len(), || ConsumableCollector::new(factory.vec()));
   }
   for (index, element) in elements.iter().enumerate() {
     data.collectors[index].push(*element);
@@ -83,7 +96,7 @@ pub fn check_dependencies<'a>(
         (false, extra_collector.collect(factory))
       }
     } else {
-      let mut deps = vec![];
+      let mut deps = analyzer.factory.vec();
       for index in &changed {
         deps.push(collectors[*index].collect(factory));
         if let Some(previous) = previous.get_mut(*index) {
@@ -106,7 +119,7 @@ pub fn check_dependencies<'a>(
   } else {
     require_rerun = true;
     for element in &elements {
-      collectors.push(ConsumableCollector::new(vec![*element]));
+      collectors.push(ConsumableCollector::new(analyzer.factory.vec1(*element)));
     }
     if let Some(rest) = rest {
       rest_collector.push(rest);

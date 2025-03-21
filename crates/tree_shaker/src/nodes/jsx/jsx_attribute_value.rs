@@ -89,6 +89,6 @@ impl<'a> Transformer<'a> {
     span: Span,
     expression: Expression<'a>,
   ) -> JSXAttributeValue<'a> {
-    self.ast_builder.jsx_attribute_value_jsx_expression_container(span, expression.into())
+    self.ast_builder.jsx_attribute_value_expression_container(span, expression.into())
   }
 }

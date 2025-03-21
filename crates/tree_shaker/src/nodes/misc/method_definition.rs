@@ -1,10 +1,10 @@
 use crate::transformer::Transformer;
 use oxc::ast::{
+  NONE,
   ast::{
     BindingPatternKind, ClassElement, Function, MethodDefinition, MethodDefinitionKind,
     PropertyDefinitionType,
   },
-  NONE,
 };
 
 impl<'a> Transformer<'a> {
@@ -52,7 +52,7 @@ impl<'a> Transformer<'a> {
       ))
     } else {
       let key = self.transform_property_key(key, false);
-      return key.map(|key| {
+      key.map(|key| {
         self.ast_builder.class_element_property_definition(
           *span,
           PropertyDefinitionType::PropertyDefinition,
@@ -69,7 +69,7 @@ impl<'a> Transformer<'a> {
           NONE,
           None,
         )
-      });
+      })
     }
   }
 

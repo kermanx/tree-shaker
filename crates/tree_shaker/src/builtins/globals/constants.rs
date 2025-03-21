@@ -1,6 +1,6 @@
 use crate::{builtins::Builtins, init_map};
 
-impl<'a> Builtins<'a> {
+impl Builtins<'_> {
   pub fn init_global_constants(&mut self) {
     let factory = self.factory;
 

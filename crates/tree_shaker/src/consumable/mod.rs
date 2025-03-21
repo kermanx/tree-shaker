@@ -7,7 +7,7 @@ use crate::analyzer::Analyzer;
 pub use collector::*;
 pub use lazy::*;
 pub use once::*;
-use oxc::allocator::Allocator;
+use oxc::allocator::{self, Allocator};
 use std::fmt::Debug;
 
 pub trait ConsumableTrait<'a>: Debug {
@@ -40,7 +40,7 @@ impl<'a> ConsumeTrait<'a> for Consumable<'a> {
   }
 }
 
-pub type ConsumableVec<'a> = Vec<Consumable<'a>>;
+pub type ConsumableVec<'a> = allocator::Vec<'a, Consumable<'a>>;
 
 impl<'a> Analyzer<'a> {
   #[inline]

@@ -23,7 +23,7 @@ impl<'a> Analyzer<'a> {
 
     let dep = self.consumable((AstKind2::ForOfStatement(node), right));
 
-    self.push_cf_scope_with_deps(CfScopeKind::LoopBreak, vec![dep], Some(false));
+    self.push_cf_scope_with_deps(CfScopeKind::LoopBreak, self.factory.vec1(dep), Some(false));
     self.exec_loop(move |analyzer| {
       analyzer.declare_for_statement_left(&node.left);
       analyzer.init_for_statement_left(&node.left, iterated);

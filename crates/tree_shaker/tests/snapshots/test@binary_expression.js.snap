@@ -1,11 +1,11 @@
 ---
-source: src/tests/mod.rs
-expression: tree_shake(input)
-input_file: src/tests/fixtures/binary_expression.js
+source: crates/tree_shaker/tests/mod.rs
+expression: do_tree_shake(input)
+input_file: crates/tree_shaker/tests/fixtures/binary_expression.js
 ---
 export const strict_equality = (a) => ({
-	s1: !0,
-	s2: !1,
+	s1: true,
+	s2: false,
 	s3: unknown === 1,
 	s4: a === a,
 	s5: (unknown, "boolean")
@@ -14,7 +14,7 @@ export const add = {
 	s1: 2,
 	s2: "1a",
 	s3: 2,
-	s4: 1,
+	s4: 1 + null,
 	s5: "a1",
 	s6: "aa",
 	s7: "atrue",

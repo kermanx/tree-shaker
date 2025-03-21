@@ -2,8 +2,9 @@ use crate::{
   analyzer::Analyzer, build_effect, entity::Entity, transformer::Transformer, utils::ast::AstKind2,
 };
 use oxc::{
+  allocator::FromIn,
   ast::ast::{Expression, TemplateElementValue, TemplateLiteral},
-  span::{GetSpan, SPAN},
+  span::{Atom, GetSpan, SPAN},
 };
 use std::mem;
 
@@ -31,7 +32,7 @@ impl<'a> Transformer<'a> {
     if need_val {
       let mut quasis_iter = quasis.into_iter();
       let mut transformed_exprs = self.ast_builder.vec();
-      let mut transformed_quasis = self.ast_builder.vec();
+      let mut transformed_quasis = vec![];
       let mut pending_effects = vec![];
       transformed_quasis
         .push(quasis_iter.next().unwrap().value.cooked.as_ref().unwrap().to_string());
@@ -80,15 +81,14 @@ impl<'a> Transformer<'a> {
         let mut quasis = self.ast_builder.vec();
         let quasis_len = transformed_quasis.len();
         for (index, quasi) in transformed_quasis.into_iter().enumerate() {
-          let str = self.allocator.alloc(quasi);
           quasis.push(self.ast_builder.template_element(
             *span,
-            index == quasis_len - 1,
             TemplateElementValue {
               // FIXME: escape
-              raw: self.escape_template_element_value(str.as_str()).into(),
-              cooked: Some(str.as_str().into()),
+              raw: self.escape_template_element_value(&quasi).into(),
+              cooked: Some(Atom::from_in(&quasi, self.allocator)),
             },
+            index == quasis_len - 1,
           ));
         }
         Some(self.ast_builder.expression_template_literal(*span, quasis, transformed_exprs))

@@ -1,4 +1,4 @@
-use super::{object::create_object_prototype, BuiltinPrototype};
+use super::{BuiltinPrototype, object::create_object_prototype};
 use crate::{entity::EntityFactory, init_prototype};
 
 pub fn create_promise_prototype<'a>(factory: &EntityFactory<'a>) -> BuiltinPrototype<'a> {

@@ -2,8 +2,8 @@ use crate::{analyzer::Analyzer, build_effect, entity::Entity, transformer::Trans
 use oxc::{
   allocator,
   ast::{
-    ast::{Expression, JSXClosingElement, JSXElement, JSXOpeningElement, PropertyKind},
     NONE,
+    ast::{Expression, JSXClosingElement, JSXElement, JSXOpeningElement, PropertyKind},
   },
 };
 

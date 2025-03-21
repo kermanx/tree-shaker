@@ -5,12 +5,12 @@ members = ["crates/*", "packages/napi", "packages/wasm", "tasks/benchmark"]
 [workspace.package]
 authors = ["_Kerman <kermanx@qq.com>"]
 categories = ["compilers", "development-tools", "web-programming"]
-edition = "2021"
+edition = "2024"
 homepage = "https://kermanx.github.io/tree-shaker"
 keywords = ["JavaScript", "TypeScript", "oxc"]
 license = "MIT"
 repository = "https://github.com/KermanX/tree-shaker"
-rust-version = "1.78"                                              # Should sync with oxc
+rust-version = "1.85"                                              # Should sync with oxc
 description = "An experimental tree shaker for JS based on Oxc."
 
 [workspace.dependencies]
@@ -23,19 +23,20 @@ flame = "0.2.2"
 flamescope = "0.1.3"
 flate2 = "1.1.0"
 line-index = "0.1.2"
-oxc = "0.46.0"
-oxc_ecmascript = "0.46.0"
+oxc = "0.61.0"
+oxc_ast_visit = "0.61.0"
+oxc_ecmascript = "0.61.0"
 oxc_index = "2.0.0"
-oxc_syntax = "0.46.0"
+oxc_syntax = "0.61.0"
 regex = "1.10.6"
 rustc-hash = "2.0.0"
 insta = "1.39.0"
 criterion = { package = "codspeed-criterion-compat", version = "*" }
-napi = "2.12.2"
-napi-derive = "2.12.2"
-napi-build = "2.0.1"
+napi = "2.16.16"
+napi-derive = "2.16.13"
+napi-build = "2.1.5"
 console_error_panic_hook = "0.1.7"
-wasm-bindgen = "0.2.93"
+wasm-bindgen = "0.2.100"
 
 [profile.release]
 # Configurations explicitly listed here for clarity.

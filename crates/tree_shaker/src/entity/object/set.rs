@@ -2,7 +2,7 @@ use super::{ObjectEntity, ObjectProperty, ObjectPropertyValue, ObjectPrototype};
 use crate::{
   analyzer::Analyzer,
   consumable::{Consumable, ConsumableCollector, ConsumableTrait},
-  entity::{consumed_object, Entity, LiteralEntity},
+  entity::{Entity, LiteralEntity, consumed_object},
   mangling::{MangleAtom, MangleConstraint},
   scope::CfScopeKind,
   utils::Found,
@@ -62,7 +62,7 @@ impl<'a> ObjectEntity<'a> {
                 analyzer.factory.mangable(
                   value,
                   (prev_key, key),
-                  analyzer.factory.alloc(MangleConstraint::Eq(prev_atom, key_atom.unwrap())),
+                  MangleConstraint::Eq(prev_atom, key_atom.unwrap()),
                 )
               } else {
                 value
@@ -92,8 +92,8 @@ impl<'a> ObjectEntity<'a> {
               ObjectProperty {
                 definite: !indeterminate && found.must_not_found(),
                 enumerable: true, /* TODO: Object.defineProperty */
-                possible_values: vec![ObjectPropertyValue::Field(value, false)],
-                non_existent: ConsumableCollector::default(),
+                possible_values: analyzer.factory.vec1(ObjectPropertyValue::Field(value, false)),
+                non_existent: ConsumableCollector::new(analyzer.factory.vec()),
                 key: Some(key),
                 mangling: mangable.then(|| key_atom.unwrap()),
               },
@@ -127,7 +127,7 @@ impl<'a> ObjectEntity<'a> {
       let indeterminate = indeterminate || setters.len() > 1 || setters[0].indeterminate;
       analyzer.push_cf_scope_with_deps(
         CfScopeKind::Dependent,
-        vec![analyzer.consumable((dep, key))],
+        analyzer.factory.vec1(analyzer.consumable((dep, key))),
         if indeterminate { None } else { Some(false) },
       );
       for s in setters {
@@ -188,11 +188,7 @@ impl<'a> ObjectEntity<'a> {
           if property.definite && found.must_found() {
             return Found::True;
           }
-          if found == Found::False {
-            Found::False
-          } else {
-            Found::Unknown
-          }
+          if found == Found::False { Found::False } else { Found::Unknown }
         } else {
           Found::False
         };

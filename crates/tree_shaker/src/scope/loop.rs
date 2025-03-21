@@ -10,7 +10,7 @@ pub struct LoopData<'a> {
 
 pub type LoopDataMap<'a> = FxHashMap<DepId, Vec<LoopData<'a>>>;
 
-impl<'a> Analyzer<'a> {
+impl Analyzer<'_> {
   pub fn post_analyze_handle_loops(&mut self) -> bool {
     let mut remained = LoopDataMap::default();
     let mut dirty = false;

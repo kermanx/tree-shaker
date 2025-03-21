@@ -1,17 +1,17 @@
 use crate::{
+  Analyzer,
   ast::{AstKind2, DeclarationKind},
   dep::DepId,
   entity::Entity,
   transformer::Transformer,
-  Analyzer,
 };
 use oxc::{
   ast::{
+    NONE,
     ast::{
       ArrayPattern, AssignmentPattern, BindingPattern, BindingPatternKind, BindingProperty,
       ObjectPattern,
     },
-    NONE,
   },
   span::GetSpan,
 };
@@ -184,9 +184,7 @@ impl<'a> Transformer<'a> {
 
           let transformed_key = self.transform_property_key(key, need_property);
           let shorthand = *shorthand
-            && transformed_key
-              .as_ref()
-              .map_or(true, |transformed| transformed.name() == key.name());
+            && transformed_key.as_ref().is_none_or(|transformed| transformed.name() == key.name());
           if shorthand && matches!(value.kind, BindingPatternKind::BindingIdentifier(_)) {
             if self.transform_binding_pattern(value, false).is_some()
               || need_property

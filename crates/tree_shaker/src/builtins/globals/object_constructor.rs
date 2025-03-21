@@ -1,5 +1,5 @@
 use crate::{
-  builtins::{constants::OBJECT_CONSTRUCTOR_OBJECT_ID, Builtins},
+  builtins::{Builtins, constants::OBJECT_CONSTRUCTOR_OBJECT_ID},
   entity::{Entity, LiteralEntity, ObjectPropertyValue, ObjectPrototype, TypeofResult},
   init_namespace,
 };
@@ -14,9 +14,9 @@ impl<'a> Builtins<'a> {
       ObjectPrototype::Builtin(&self.prototypes.function),
       false,
     );
-    object.init_rest(ObjectPropertyValue::Field(factory.immutable_unknown, true));
+    object.init_rest(factory, ObjectPropertyValue::Field(factory.immutable_unknown, true));
 
-    init_namespace!(object, {
+    init_namespace!(object, factory, {
       "prototype" => factory.immutable_unknown,
       "assign" => self.create_object_assign_impl(),
       "keys" => self.create_object_keys_impl(),

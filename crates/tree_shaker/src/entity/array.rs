@@ -1,13 +1,14 @@
 use super::{
-  consumed_object, Entity, EnumeratedProperties, IteratedElements, LiteralEntity, ObjectId,
-  TypeofResult, ValueTrait,
+  Entity, EnumeratedProperties, IteratedElements, LiteralEntity, ObjectId, TypeofResult,
+  ValueTrait, consumed_object,
 };
 use crate::{
   analyzer::Analyzer,
-  consumable::{Consumable, ConsumableCollector},
+  consumable::{Consumable, ConsumableCollector, ConsumableTrait},
   scope::CfScopeId,
   use_consumed_flag,
 };
+use oxc::allocator;
 use std::{
   cell::{Cell, RefCell},
   fmt,
@@ -18,11 +19,11 @@ pub struct ArrayEntity<'a> {
   pub deps: RefCell<ConsumableCollector<'a>>,
   pub cf_scope: CfScopeId,
   pub object_id: ObjectId,
-  pub elements: RefCell<Vec<Entity<'a>>>,
-  pub rest: RefCell<Vec<Entity<'a>>>,
+  pub elements: RefCell<allocator::Vec<'a, Entity<'a>>>,
+  pub rest: RefCell<allocator::Vec<'a, Entity<'a>>>,
 }
 
-impl<'a> fmt::Debug for ArrayEntity<'a> {
+impl fmt::Debug for ArrayEntity<'_> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("ArrayEntity")
       .field("consumed", &self.consumed.get())
@@ -39,10 +40,9 @@ impl<'a> ValueTrait<'a> for ArrayEntity<'a> {
 
     analyzer.mark_object_consumed(self.cf_scope, self.object_id);
 
-    self.deps.take().consume_all(analyzer);
-
-    analyzer.consume(self.elements.take());
-    analyzer.consume(self.rest.take());
+    self.deps.borrow().consume_all(analyzer);
+    self.elements.borrow().consume(analyzer);
+    self.rest.borrow().consume(analyzer);
   }
 
   fn unknown_mutate(&'a self, analyzer: &mut Analyzer<'a>, dep: Consumable<'a>) {
@@ -78,7 +78,7 @@ impl<'a> ValueTrait<'a> for ArrayEntity<'a> {
 
     let dep = analyzer.consumable((self.deps.borrow_mut().collect(analyzer.factory), dep, key));
     if let Some(key_literals) = key.get_to_literals(analyzer) {
-      let mut result = vec![];
+      let mut result = analyzer.factory.vec();
       let mut rest_added = false;
       for key_literal in key_literals {
         match key_literal {
@@ -93,10 +93,7 @@ impl<'a> ValueTrait<'a> for ArrayEntity<'a> {
               }
             } else if key == "length" {
               result.push(self.get_length().map_or_else(
-                || {
-                  let dep = self.rest.borrow().clone();
-                  analyzer.factory.computed_unknown_number(dep)
-                },
+                || analyzer.factory.computed_unknown_number(&self.rest),
                 |length| analyzer.factory.number(length as f64, None),
               ));
             } else if let Some(property) = analyzer.builtins.prototypes.array.get_string_keyed(key)
@@ -112,10 +109,7 @@ impl<'a> ValueTrait<'a> for ArrayEntity<'a> {
       }
       analyzer.factory.computed_union(result, dep)
     } else {
-      analyzer.factory.computed_unknown((
-        self.elements.borrow().iter().chain(self.rest.borrow().iter()).cloned().collect::<Vec<_>>(),
-        dep,
-      ))
+      analyzer.factory.computed_unknown((&self.elements, &self.rest, dep))
     }
   }
 
@@ -230,7 +224,7 @@ impl<'a> ValueTrait<'a> for ArrayEntity<'a> {
     for (i, element) in self.elements.borrow().iter().enumerate() {
       entries.push((
         true,
-        analyzer.factory.string(analyzer.allocator.alloc(i.to_string())),
+        analyzer.factory.string(analyzer.allocator.alloc_str(&i.to_string())),
         *element,
       ));
     }
@@ -239,7 +233,9 @@ impl<'a> ValueTrait<'a> for ArrayEntity<'a> {
       entries.push((
         true,
         analyzer.factory.unknown_string,
-        analyzer.factory.union(rest.iter().cloned().collect::<Vec<_>>()),
+        analyzer
+          .factory
+          .union(allocator::Vec::from_iter_in(rest.iter().copied(), analyzer.allocator)),
       ));
     }
 
@@ -305,8 +301,11 @@ impl<'a> ValueTrait<'a> for ArrayEntity<'a> {
     }
 
     (
-      self.elements.borrow().clone(),
-      analyzer.factory.try_union(self.rest.borrow().clone()),
+      Vec::from_iter(self.elements.borrow().iter().copied()),
+      analyzer.factory.try_union(allocator::Vec::from_iter_in(
+        self.rest.borrow().iter().copied(),
+        analyzer.allocator,
+      )),
       analyzer.consumable((dep, self.deps.borrow_mut().collect(analyzer.factory))),
     )
   }
@@ -368,11 +367,7 @@ impl<'a> ArrayEntity<'a> {
   }
 
   pub fn get_length(&self) -> Option<usize> {
-    if self.rest.borrow().is_empty() {
-      Some(self.elements.borrow().len())
-    } else {
-      None
-    }
+    if self.rest.borrow().is_empty() { Some(self.elements.borrow().len()) } else { None }
   }
 }
 

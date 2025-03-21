@@ -4,7 +4,7 @@ use super::{ObjectEntity, ObjectProperty, ObjectPropertyValue};
 use crate::{
   analyzer::Analyzer,
   consumable::{ConsumableCollector, ConsumeTrait},
-  entity::{Entity, LiteralEntity},
+  entity::{Entity, EntityFactory, LiteralEntity},
   mangling::MangleConstraint,
 };
 use oxc::ast::ast::PropertyKind;
@@ -52,7 +52,7 @@ impl<'a> ObjectEntity<'a> {
               None
             };
             let value = if let Some(constraint) = constraint {
-              analyzer.factory.computed(value, &*analyzer.factory.alloc(constraint))
+              analyzer.factory.computed(value, constraint)
             } else {
               value
             };
@@ -72,8 +72,8 @@ impl<'a> ObjectEntity<'a> {
               let property = ObjectProperty {
                 definite,
                 enumerable: true,
-                possible_values: vec![property_val],
-                non_existent: ConsumableCollector::default(),
+                possible_values: analyzer.factory.vec1(property_val),
+                non_existent: ConsumableCollector::new(analyzer.factory.vec()),
                 key: Some(key),
                 mangling: mangable.then(|| key_atom.unwrap()),
               };
@@ -111,7 +111,7 @@ impl<'a> ObjectEntity<'a> {
     self.unknown_keyed.borrow_mut().non_existent.push(deps);
   }
 
-  pub fn init_rest(&self, property: ObjectPropertyValue<'a>) {
+  pub fn init_rest(&self, factory: &EntityFactory<'a>, property: ObjectPropertyValue<'a>) {
     assert_eq!(self.mangling_group, None);
     let mut rest = self.rest.borrow_mut();
     if let Some(rest) = &mut *rest {
@@ -120,8 +120,8 @@ impl<'a> ObjectEntity<'a> {
       *rest = Some(ObjectProperty {
         definite: false,
         enumerable: true,
-        possible_values: vec![property],
-        non_existent: ConsumableCollector::default(),
+        possible_values: factory.vec1(property),
+        non_existent: ConsumableCollector::new(factory.vec()),
         key: None,
         mangling: None,
       });

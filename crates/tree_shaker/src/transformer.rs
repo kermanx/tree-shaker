@@ -1,24 +1,24 @@
 use crate::{
+  TreeShakeConfig,
   dep::{DepId, ReferredDeps},
   folding::ConstantFolder,
   mangling::Mangler,
   scope::conditional::ConditionalDataMap,
   utils::{DataPlaceholder, ExtraData},
-  TreeShakeConfig,
 };
 use oxc::{
   allocator::{Allocator, CloneIn},
   ast::{
+    AstBuilder, NONE,
     ast::{
       ArrayExpressionElement, AssignmentTarget, BinaryOperator, BindingIdentifier, BindingPattern,
       BindingPatternKind, Expression, ForStatementLeft, FormalParameterKind, IdentifierReference,
       LogicalOperator, NumberBase, Program, SimpleAssignmentTarget, Statement, UnaryOperator,
       VariableDeclarationKind,
     },
-    AstBuilder, NONE,
   },
   semantic::{ScopeId, Semantic, SymbolId},
-  span::{GetSpan, Span, SPAN},
+  span::{GetSpan, SPAN, Span},
 };
 use rustc_hash::FxHashMap;
 use std::{
@@ -36,7 +36,7 @@ pub struct Transformer<'a> {
   pub conditional_data: &'a ConditionalDataMap<'a>,
   pub folder: &'a ConstantFolder<'a>,
   pub mangler: Rc<RefCell<&'a mut Mangler<'a>>>,
-  pub semantic: &'a Semantic<'a>,
+  pub semantic: Rc<Semantic<'a>>,
 
   pub ast_builder: AstBuilder<'a>,
 
@@ -57,7 +57,7 @@ impl<'a> Transformer<'a> {
     conditional_data: &'a ConditionalDataMap<'a>,
     folder: &'a ConstantFolder<'a>,
     mangler: Rc<RefCell<&'a mut Mangler<'a>>>,
-    semantic: &'a Semantic<'a>,
+    semantic: Rc<Semantic<'a>>,
   ) -> Self {
     Transformer {
       config,
@@ -111,7 +111,7 @@ impl<'a> Transformer<'a> {
   }
 
   pub fn update_var_decl_state(&self, symbol: SymbolId, is_declaration: bool) {
-    if !self.semantic.symbols().get_flags(symbol).is_function_scoped_declaration() {
+    if !self.semantic.scoping().symbol_flags(symbol).is_function_scoped_declaration() {
       return;
     }
     let mut var_decls = self.var_decls.borrow_mut();
@@ -128,7 +128,7 @@ impl<'a> Transformer<'a> {
     scope_id: ScopeId,
     statements: &mut oxc::allocator::Vec<'a, Statement<'a>>,
   ) {
-    let bindings = self.semantic.scopes().get_bindings(scope_id);
+    let bindings = self.semantic.scoping().get_bindings(scope_id);
     if bindings.is_empty() {
       return;
     }
@@ -137,8 +137,8 @@ impl<'a> Transformer<'a> {
     let mut declarations = self.ast_builder.vec();
     for symbol_id in bindings.values() {
       if var_decls.get(symbol_id) == Some(&true) {
-        let name = self.semantic.symbols().get_name(*symbol_id);
-        let span = self.semantic.symbols().get_span(*symbol_id);
+        let name = self.semantic.scoping().symbol_name(*symbol_id);
+        let span = self.semantic.scoping().symbol_span(*symbol_id);
         declarations.push(self.ast_builder.variable_declarator(
           span,
           VariableDeclarationKind::Var,
@@ -253,7 +253,7 @@ impl<'a> Transformer<'a> {
   }
 
   pub fn build_undefined(&self, span: Span) -> Expression<'a> {
-    self.ast_builder.expression_identifier_reference(span, "undefined")
+    self.ast_builder.expression_identifier(span, "undefined")
   }
 
   pub fn build_negate_expression(&self, expression: Expression<'a>) -> Expression<'a> {
@@ -263,7 +263,7 @@ impl<'a> Transformer<'a> {
   pub fn build_object_spread_effect(&self, span: Span, argument: Expression<'a>) -> Expression<'a> {
     self.ast_builder.expression_object(
       span,
-      self.ast_builder.vec1(self.ast_builder.object_property_kind_spread_element(span, argument)),
+      self.ast_builder.vec1(self.ast_builder.object_property_kind_spread_property(span, argument)),
       None,
     )
   }
@@ -331,16 +331,16 @@ impl<'a> Transformer<'a> {
                 SPAN,
                 self.ast_builder.expression_binary(
                   SPAN,
-                  self.ast_builder.expression_identifier_reference(SPAN, "v"),
+                  self.ast_builder.expression_identifier(SPAN, "v"),
                   BinaryOperator::StrictInequality,
                   self.ast_builder.expression_null_literal(SPAN),
                 ),
                 LogicalOperator::And,
                 self.ast_builder.expression_binary(
                   SPAN,
-                  self.ast_builder.expression_identifier_reference(SPAN, "v"),
+                  self.ast_builder.expression_identifier(SPAN, "v"),
                   BinaryOperator::StrictInequality,
-                  self.ast_builder.expression_identifier_reference(SPAN, "undefined"),
+                  self.ast_builder.expression_identifier(SPAN, "undefined"),
                 ),
               ),
             )),
@@ -363,7 +363,7 @@ impl<'a> Transformer<'a> {
       span,
       self.ast_builder.expression_call(
         left.span(),
-        self.ast_builder.expression_identifier_reference(span, "__non_nullish__"),
+        self.ast_builder.expression_identifier(span, "__non_nullish__"),
         NONE,
         self.ast_builder.vec1(left.into()),
         false,
@@ -376,6 +376,8 @@ impl<'a> Transformer<'a> {
 
 impl<'a> Transformer<'a> {
   pub fn get_data<D: Default + 'a>(&self, key: impl Into<DepId>) -> &'a D {
+    const { assert!(!std::mem::needs_drop::<D>(), "Cannot allocate Drop type in arena") };
+
     let existing = self.data.get(&key.into());
     match existing {
       Some(boxed) => unsafe { mem::transmute::<&DataPlaceholder<'_>, &D>(boxed.as_ref()) },

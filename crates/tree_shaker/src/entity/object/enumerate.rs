@@ -1,8 +1,10 @@
-use super::{get::GetPropertyContext, ObjectEntity};
+use oxc::allocator;
+
+use super::{ObjectEntity, get::GetPropertyContext};
 use crate::{
   analyzer::Analyzer,
   consumable::Consumable,
-  entity::{consumed_object, EnumeratedProperties},
+  entity::{EnumeratedProperties, consumed_object},
   scope::CfScopeKind,
 };
 use std::mem;
@@ -18,14 +20,14 @@ impl<'a> ObjectEntity<'a> {
     }
 
     analyzer.mark_object_property_exhaustive_read(self.cf_scope, self.object_id);
-    analyzer.push_cf_scope_with_deps(CfScopeKind::Dependent, vec![dep], None);
+    analyzer.push_cf_scope_with_deps(CfScopeKind::Dependent, analyzer.factory.vec1(dep), None);
 
     let mut result = vec![];
     let mut context = GetPropertyContext {
       key: analyzer.factory.never,
       values: vec![],
       getters: vec![],
-      extra_deps: vec![],
+      extra_deps: analyzer.factory.vec(),
     };
 
     {
@@ -45,7 +47,10 @@ impl<'a> ObjectEntity<'a> {
         ));
       }
 
-      if let Some(value) = analyzer.factory.try_union(mem::take(&mut context.values)) {
+      if let Some(value) = analyzer
+        .factory
+        .try_union(allocator::Vec::from_iter_in(context.values.drain(..), analyzer.allocator))
+      {
         result.push((false, analyzer.factory.unknown_primitive, value));
       }
     }
@@ -80,7 +85,10 @@ impl<'a> ObjectEntity<'a> {
           ));
         }
 
-        if let Some(value) = analyzer.factory.try_union(mem::take(&mut context.values)) {
+        if let Some(value) = analyzer
+          .factory
+          .try_union(allocator::Vec::from_iter_in(context.values.drain(..), analyzer.allocator))
+        {
           result.push((definite, key_entity, value));
         }
       }

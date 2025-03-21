@@ -1,21 +1,16 @@
 use super::{Consumable, ConsumeTrait};
 use crate::{analyzer::Analyzer, entity::EntityFactory};
+use oxc::allocator;
 use std::mem;
 
 #[derive(Debug)]
 pub struct ConsumableCollector<'a, T: ConsumeTrait<'a> + 'a = Consumable<'a>> {
-  pub current: Vec<T>,
+  pub current: allocator::Vec<'a, T>,
   pub node: Option<Consumable<'a>>,
 }
 
-impl<'a, T: ConsumeTrait<'a> + 'a> Default for ConsumableCollector<'a, T> {
-  fn default() -> Self {
-    Self { current: Vec::new(), node: None }
-  }
-}
-
 impl<'a, T: ConsumeTrait<'a> + 'a> ConsumableCollector<'a, T> {
-  pub fn new(current: Vec<T>) -> Self {
+  pub fn new(current: allocator::Vec<'a, T>) -> Self {
     Self { current, node: None }
   }
 
@@ -31,7 +26,7 @@ impl<'a, T: ConsumeTrait<'a> + 'a> ConsumableCollector<'a, T> {
     if self.current.is_empty() {
       self.node
     } else {
-      let current = mem::take(&mut self.current);
+      let current = mem::replace(&mut self.current, factory.vec());
       let node = Some(if let Some(node) = self.node {
         factory.consumable((current, node))
       } else {

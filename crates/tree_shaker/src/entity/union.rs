@@ -1,6 +1,6 @@
 use super::{
-  consumed_object, utils::UnionLike, Entity, EnumeratedProperties, IteratedElements, LiteralEntity,
-  ObjectPrototype, TypeofResult, ValueTrait,
+  Entity, EnumeratedProperties, IteratedElements, LiteralEntity, ObjectPrototype, TypeofResult,
+  ValueTrait, consumed_object, utils::UnionLike,
 };
 use crate::{analyzer::Analyzer, consumable::Consumable, use_consumed_flag};
 use rustc_hash::FxHashSet;
@@ -48,8 +48,9 @@ impl<'a, V: UnionLike<'a, Entity<'a>> + Debug + 'a> ValueTrait<'a> for UnionEnti
     dep: Consumable<'a>,
     key: Entity<'a>,
   ) -> Entity<'a> {
-    let values = analyzer
-      .exec_indeterminately(|analyzer| self.values.map(|v| v.get_property(analyzer, dep, key)));
+    let values = analyzer.exec_indeterminately(|analyzer| {
+      self.values.map(analyzer.allocator, |v| v.get_property(analyzer, dep, key))
+    });
     analyzer.factory.union(values)
   }
 
@@ -91,8 +92,9 @@ impl<'a, V: UnionLike<'a, Entity<'a>> + Debug + 'a> ValueTrait<'a> for UnionEnti
     this: Entity<'a>,
     args: Entity<'a>,
   ) -> Entity<'a> {
-    let values = analyzer
-      .exec_indeterminately(|analyzer| self.values.map(|v| v.call(analyzer, dep, this, args)));
+    let values = analyzer.exec_indeterminately(|analyzer| {
+      self.values.map(analyzer.allocator, |v| v.call(analyzer, dep, this, args))
+    });
     analyzer.factory.union(values)
   }
 
@@ -102,25 +104,28 @@ impl<'a, V: UnionLike<'a, Entity<'a>> + Debug + 'a> ValueTrait<'a> for UnionEnti
     dep: Consumable<'a>,
     args: Entity<'a>,
   ) -> Entity<'a> {
-    let values = analyzer
-      .exec_indeterminately(|analyzer| self.values.map(|v| v.construct(analyzer, dep, args)));
+    let values = analyzer.exec_indeterminately(|analyzer| {
+      self.values.map(analyzer.allocator, |v| v.construct(analyzer, dep, args))
+    });
     analyzer.factory.union(values)
   }
 
   fn jsx(&'a self, analyzer: &mut Analyzer<'a>, props: Entity<'a>) -> Entity<'a> {
-    let values =
-      analyzer.exec_indeterminately(|analyzer| self.values.map(|v| v.jsx(analyzer, props)));
+    let values = analyzer.exec_indeterminately(|analyzer| {
+      self.values.map(analyzer.allocator, |v| v.jsx(analyzer, props))
+    });
     analyzer.factory.union(values)
   }
 
   fn r#await(&'a self, analyzer: &mut Analyzer<'a>, dep: Consumable<'a>) -> Entity<'a> {
-    let values =
-      analyzer.exec_indeterminately(|analyzer| self.values.map(|v| v.r#await(analyzer, dep)));
+    let values = analyzer.exec_indeterminately(|analyzer| {
+      self.values.map(analyzer.allocator, |v| v.r#await(analyzer, dep))
+    });
     analyzer.factory.union(values)
   }
 
   fn iterate(&'a self, analyzer: &mut Analyzer<'a>, dep: Consumable<'a>) -> IteratedElements<'a> {
-    let mut results = Vec::new();
+    let mut results = analyzer.factory.vec();
     let mut has_undefined = false;
     analyzer.push_indeterminate_cf_scope();
     for entity in self.values.iter() {
@@ -139,34 +144,34 @@ impl<'a, V: UnionLike<'a, Entity<'a>> + Debug + 'a> ValueTrait<'a> for UnionEnti
 
   fn get_typeof(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
     // TODO: collect literals
-    let values = self.values.map(|v| v.get_typeof(analyzer));
+    let values = self.values.map(analyzer.allocator, |v| v.get_typeof(analyzer));
     analyzer.factory.union(values)
   }
 
   fn get_to_string(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
     // TODO: dedupe
-    let values = self.values.map(|v| v.get_to_string(analyzer));
+    let values = self.values.map(analyzer.allocator, |v| v.get_to_string(analyzer));
     analyzer.factory.union(values)
   }
 
   fn get_to_numeric(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
     // TODO: dedupe
-    let values = self.values.map(|v| v.get_to_numeric(analyzer));
+    let values = self.values.map(analyzer.allocator, |v| v.get_to_numeric(analyzer));
     analyzer.factory.union(values)
   }
 
   fn get_to_boolean(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
-    let values = self.values.map(|v| v.get_to_boolean(analyzer));
+    let values = self.values.map(analyzer.allocator, |v| v.get_to_boolean(analyzer));
     analyzer.factory.union(values)
   }
 
   fn get_to_property_key(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
-    let values = self.values.map(|v| v.get_to_property_key(analyzer));
+    let values = self.values.map(analyzer.allocator, |v| v.get_to_property_key(analyzer));
     analyzer.factory.union(values)
   }
 
   fn get_to_jsx_child(&'a self, analyzer: &Analyzer<'a>) -> Entity<'a> {
-    let values = self.values.map(|v| v.get_to_jsx_child(analyzer));
+    let values = self.values.map(analyzer.allocator, |v| v.get_to_jsx_child(analyzer));
     analyzer.factory.union(values)
   }
 

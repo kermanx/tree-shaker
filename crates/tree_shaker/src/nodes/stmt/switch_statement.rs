@@ -6,18 +6,9 @@ use oxc::{
   ast::ast::{Expression, Statement, SwitchCase, SwitchStatement},
   span::Span,
 };
-use rustc_hash::FxHashSet;
-
-#[derive(Debug, Default)]
-pub struct Data {
-  need_test: FxHashSet<usize>,
-  need_consequent: FxHashSet<usize>,
-}
 
 impl<'a> Analyzer<'a> {
   pub fn exec_switch_statement(&mut self, node: &'a SwitchStatement<'a>) {
-    let data = self.load_data::<Data>(AstKind2::SwitchStatement(node));
-
     // 1. discriminant
     let discriminant = self.exec_expression(&node.discriminant);
     self.push_dependent_cf_scope(discriminant);
@@ -36,7 +27,7 @@ impl<'a> Analyzer<'a> {
         test_results.push(test_result);
 
         if test_result != Some(false) {
-          data.need_test.insert(index);
+          self.consume(AstKind2::SwitchCaseTest(case));
         }
 
         match test_result {
@@ -71,7 +62,7 @@ impl<'a> Analyzer<'a> {
     if let Some(default_case) = default_case {
       test_results[default_case] = maybe_default_case;
       if maybe_default_case != Some(false) {
-        data.need_test.insert(default_case);
+        self.consume(AstKind2::SwitchCaseTest(&node.cases[default_case]));
       }
     }
 
@@ -94,7 +85,7 @@ impl<'a> Analyzer<'a> {
       };
 
       if entered != Some(false) {
-        data.need_consequent.insert(index);
+        self.consume(AstKind2::SwitchCase(case));
 
         let data = self.load_data::<StatementVecData>(AstKind2::SwitchCase(case));
 
@@ -115,8 +106,6 @@ impl<'a> Analyzer<'a> {
 
 impl<'a> Transformer<'a> {
   pub fn transform_switch_statement(&self, node: &'a SwitchStatement<'a>) -> Option<Statement<'a>> {
-    let data = self.get_data::<Data>(AstKind2::SwitchStatement(node));
-
     let SwitchStatement { span, discriminant, cases, .. } = node;
 
     let mut transformed_cases: Vec<(
@@ -124,9 +113,9 @@ impl<'a> Transformer<'a> {
       Option<Expression<'a>>,
       oxc::allocator::Vec<'a, Statement<'a>>,
     )> = vec![];
-    for (index, case) in cases.into_iter().enumerate() {
-      let need_test = data.need_test.contains(&index);
-      let need_consequent = data.need_consequent.contains(&index);
+    for case in cases {
+      let need_test = self.is_referred(AstKind2::SwitchCaseTest(case));
+      let need_consequent = self.is_referred(AstKind2::SwitchCase(case));
 
       let data = self.get_data::<StatementVecData>(AstKind2::SwitchCase(case));
 

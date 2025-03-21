@@ -16,7 +16,7 @@ mod throw_statement;
 mod try_statement;
 mod while_statement;
 
-use crate::{transformer::Transformer, Analyzer};
+use crate::{Analyzer, transformer::Transformer};
 use oxc::{
   ast::{
     ast::{ExpressionStatement, Statement},

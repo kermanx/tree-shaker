@@ -1,7 +1,7 @@
 use crate::{transformer::Transformer, utils::ast::AstKind2};
 use oxc::ast::{
-  ast::{ClassElement, PropertyDefinition},
   NONE,
+  ast::{ClassElement, PropertyDefinition},
 };
 
 impl<'a> Transformer<'a> {

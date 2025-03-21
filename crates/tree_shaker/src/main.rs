@@ -1,14 +1,13 @@
 use clap::Parser;
-use flate2::{write::GzEncoder, Compression};
+use flate2::{Compression, write::GzEncoder};
 use oxc::{
   codegen::CodegenOptions,
   minifier::{MangleOptions, MinifierOptions},
 };
 use std::{fs::File, io::Write, path::PathBuf};
 use tree_shaker::{
-  tree_shake,
+  TreeShakeConfig, TreeShakeOptions, tree_shake,
   vfs::{SingleFileFs, StdFs, Vfs},
-  TreeShakeConfig, TreeShakeOptions,
 };
 
 #[derive(Parser, Debug)]

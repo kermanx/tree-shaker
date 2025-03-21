@@ -1,16 +1,18 @@
+use oxc::allocator::{self, Allocator};
+
 use crate::{analyzer::Analyzer, entity::Entity};
 
 #[derive(Debug)]
 pub struct TryScope<'a> {
   pub may_throw: bool,
-  pub thrown_values: Vec<Entity<'a>>,
+  pub thrown_values: allocator::Vec<'a, Entity<'a>>,
   /// Here we use index in current stack instead of ScopeId
   pub cf_scope_depth: usize,
 }
 
 impl<'a> TryScope<'a> {
-  pub fn new(cf_scope_depth: usize) -> Self {
-    TryScope { may_throw: false, thrown_values: Vec::new(), cf_scope_depth }
+  pub fn new_in(cf_scope_depth: usize, allocator: &'a Allocator) -> Self {
+    TryScope { may_throw: false, thrown_values: allocator::Vec::new_in(allocator), cf_scope_depth }
   }
 
   pub fn thrown_val(self, analyzer: &Analyzer<'a>) -> Option<Entity<'a>> {
@@ -54,7 +56,7 @@ impl<'a> Analyzer<'a> {
     self.exit_to(try_scope.cf_scope_depth);
   }
 
-  pub fn forward_throw(&mut self, values: Vec<Entity<'a>>) {
+  pub fn forward_throw(&mut self, values: allocator::Vec<'a, Entity<'a>>) {
     if values.is_empty() {
       self.may_throw();
     } else {

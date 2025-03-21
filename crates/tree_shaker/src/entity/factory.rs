@@ -1,12 +1,16 @@
 use crate::{
-  consumable::{Consumable, ConsumableTrait, ConsumeTrait, LazyConsumable, OnceConsumable},
+  TreeShakeConfig,
+  consumable::{
+    Consumable, ConsumableCollector, ConsumableTrait, ConsumeTrait, LazyConsumable, OnceConsumable,
+  },
   mangling::{AlwaysMangableDep, MangleAtom, MangleConstraint, ManglingDep},
   scope::CfScopeId,
   utils::F64WithEq,
-  TreeShakeConfig,
 };
 
 use super::{
+  Entity, LiteralEntity, ObjectEntity, ObjectId, ObjectProperty, ObjectPrototype, PrimitiveEntity,
+  PureBuiltinFnEntity, UnknownEntity,
   arguments::ArgumentsEntity,
   array::ArrayEntity,
   builtin_fn::{BuiltinFnImplementation, ImplementedBuiltinFnEntity},
@@ -15,10 +19,8 @@ use super::{
   react_element::ReactElementEntity,
   union::UnionEntity,
   utils::UnionLike,
-  Entity, LiteralEntity, ObjectEntity, ObjectId, ObjectPrototype, PrimitiveEntity,
-  PureBuiltinFnEntity, UnknownEntity,
 };
-use oxc::allocator::Allocator;
+use oxc::allocator::{self, Allocator};
 use oxc::semantic::SymbolId;
 use oxc_syntax::operator::LogicalOperator;
 
@@ -95,7 +97,12 @@ impl<'a> EntityFactory<'a> {
     let pure_fn_returns_undefined =
       allocator.alloc(PureBuiltinFnEntity::new(|f| f.undefined)).into();
 
-    let empty_arguments = allocator.alloc(ArgumentsEntity::default()).into();
+    let empty_arguments = allocator
+      .alloc(ArgumentsEntity {
+        consumed: Cell::new(false),
+        arguments: allocator::Vec::new_in(allocator),
+      })
+      .into();
     let unmatched_prototype_property: Entity<'a> =
       if config.unmatched_prototype_property_as_undefined { undefined } else { immutable_unknown };
 
@@ -143,6 +150,16 @@ impl<'a> EntityFactory<'a> {
     self.allocator.alloc(val)
   }
 
+  pub fn vec<T>(&self) -> allocator::Vec<'a, T> {
+    allocator::Vec::new_in(self.allocator)
+  }
+
+  pub fn vec1<T>(&self, v: T) -> allocator::Vec<'a, T> {
+    let mut vec = allocator::Vec::with_capacity_in(1, self.allocator);
+    vec.push(v);
+    vec
+  }
+
   pub fn alloc_instance_id(&self) -> usize {
     let id = self.instance_id_counter.get();
     self.instance_id_counter.set(id + 1);
@@ -161,26 +178,26 @@ impl<'a> EntityFactory<'a> {
       consumed_as_prototype: Cell::new(false),
       cf_scope: CfScopeId::new(0),
       object_id,
-      string_keyed: Default::default(),
-      unknown_keyed: Default::default(),
+      string_keyed: allocator::HashMap::new_in(self.allocator).into(),
+      unknown_keyed: ObjectProperty::new_in(self.allocator).into(),
       rest: Default::default(),
       prototype: Cell::new(prototype),
       mangling_group: None,
     })
   }
 
-  pub fn arguments(&self, arguments: Vec<(bool, Entity<'a>)>) -> Entity<'a> {
+  pub fn arguments(&self, arguments: allocator::Vec<'a, (bool, Entity<'a>)>) -> Entity<'a> {
     self.alloc(ArgumentsEntity { consumed: Cell::new(false), arguments }).into()
   }
 
   pub fn array(&self, cf_scope: CfScopeId, object_id: ObjectId) -> &'a mut ArrayEntity<'a> {
     self.alloc(ArrayEntity {
       consumed: Cell::new(false),
-      deps: Default::default(),
+      deps: RefCell::new(ConsumableCollector::new(self.vec())),
       cf_scope,
       object_id,
-      elements: RefCell::new(Vec::new()),
-      rest: RefCell::new(Vec::new()),
+      elements: RefCell::new(self.vec()),
+      rest: RefCell::new(self.vec()),
     })
   }
 
@@ -234,18 +251,10 @@ impl<'a> EntityFactory<'a> {
   }
 
   pub fn boolean(&self, value: bool) -> Entity<'a> {
-    if value {
-      self.r#true
-    } else {
-      self.r#false
-    }
+    if value { self.r#true } else { self.r#false }
   }
   pub fn boolean_maybe_unknown(&self, value: Option<bool>) -> Entity<'a> {
-    if let Some(value) = value {
-      self.boolean(value)
-    } else {
-      self.unknown_boolean
-    }
+    if let Some(value) = value { self.boolean(value) } else { self.unknown_boolean }
   }
 
   pub fn infinity(&self, positivie: bool) -> Entity<'a> {
@@ -320,9 +329,9 @@ impl<'a> EntityFactory<'a> {
     }
   }
 
-  pub fn computed_union<T: ConsumeTrait<'a> + 'a>(
+  pub fn computed_union<V: UnionLike<'a, Entity<'a>> + Debug + 'a, T: ConsumeTrait<'a> + 'a>(
     &self,
-    values: Vec<Entity<'a>>,
+    values: V,
     dep: T,
   ) -> Entity<'a> {
     self.computed(self.union(values), dep)
@@ -337,7 +346,7 @@ impl<'a> EntityFactory<'a> {
   }
 
   pub fn new_lazy_consumable(&self, consumable: Consumable<'a>) -> LazyConsumable<'a> {
-    LazyConsumable(self.alloc(RefCell::new(Some(vec![consumable]))))
+    LazyConsumable(self.alloc(RefCell::new(Some(self.vec1(consumable)))))
   }
 
   pub fn react_element(&self, tag: Entity<'a>, props: Entity<'a>) -> Entity<'a> {
@@ -346,7 +355,7 @@ impl<'a> EntityFactory<'a> {
         consumed: Cell::new(false),
         tag,
         props,
-        deps: RefCell::new(vec![]),
+        deps: RefCell::new(self.vec()),
       })
       .into()
   }
@@ -355,7 +364,7 @@ impl<'a> EntityFactory<'a> {
     &self,
     val: Entity<'a>,
     deps: (Entity<'a>, Entity<'a>),
-    constraint: &'a MangleConstraint,
+    constraint: MangleConstraint<'a>,
   ) -> Entity<'a> {
     self.computed(val, ManglingDep { deps, constraint })
   }

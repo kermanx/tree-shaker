@@ -18,25 +18,31 @@ use crate::{
   consumable::Consumable,
   entity::{Entity, EntityFactory, LiteralEntity},
 };
-use oxc::semantic::SymbolId;
-use rustc_hash::FxHashMap;
+use oxc::{allocator, semantic::SymbolId};
 
 use super::Builtins;
 
-#[derive(Default)]
 pub struct BuiltinPrototype<'a> {
   name: &'static str,
-  string_keyed: FxHashMap<&'static str, Entity<'a>>,
-  symbol_keyed: FxHashMap<SymbolId, Entity<'a>>,
+  string_keyed: allocator::HashMap<'a, &'static str, Entity<'a>>,
+  symbol_keyed: allocator::HashMap<'a, SymbolId, Entity<'a>>,
 }
 
-impl<'a> fmt::Debug for BuiltinPrototype<'a> {
+impl fmt::Debug for BuiltinPrototype<'_> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.write_str(format!("Prototype({})", self.name).as_str())
   }
 }
 
 impl<'a> BuiltinPrototype<'a> {
+  pub fn new_in(factory: &EntityFactory<'a>) -> Self {
+    Self {
+      name: "",
+      string_keyed: allocator::HashMap::new_in(factory.allocator),
+      symbol_keyed: allocator::HashMap::new_in(factory.allocator),
+    }
+  }
+
   pub fn with_name(mut self, name: &'static str) -> Self {
     self.name = name;
     self
@@ -75,7 +81,7 @@ impl<'a> BuiltinPrototype<'a> {
   ) -> Entity<'a> {
     let dep = (dep, target, key);
     if let Some(key_literals) = key.get_to_literals(analyzer) {
-      let mut values = vec![];
+      let mut values = analyzer.factory.vec();
       for key_literal in key_literals {
         if let Some(property) = self.get_literal_keyed(key_literal) {
           values.push(property);

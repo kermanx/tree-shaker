@@ -1,4 +1,4 @@
-use crate::{entity::Entity, Analyzer};
+use crate::{Analyzer, entity::Entity};
 use oxc::ast::ast::{
   BigIntLiteral, BooleanLiteral, NullLiteral, NumberBase, NumericLiteral, RegExpLiteral,
   StringLiteral,

@@ -1,4 +1,4 @@
-use crate::{ast::DeclarationKind, transformer::Transformer, Analyzer};
+use crate::{Analyzer, ast::DeclarationKind, transformer::Transformer};
 use oxc::ast::ast::{
   ExportDefaultDeclaration, ExportDefaultDeclarationKind, ExportNamedDeclaration,
   ImportDeclaration, ImportDeclarationSpecifier, ImportDefaultSpecifier, ImportNamespaceSpecifier,
@@ -26,7 +26,7 @@ impl<'a> Analyzer<'a> {
         for specifier in &node.specifiers {
           match &specifier.local {
             ModuleExportName::IdentifierReference(node) => {
-              let reference = self.semantic().symbols().get_reference(node.reference_id());
+              let reference = self.semantic().scoping().get_reference(node.reference_id());
               if let Some(symbol) = reference.symbol_id() {
                 let scope = self.scoping.variable.current_id();
                 self
@@ -280,8 +280,8 @@ impl<'a> Transformer<'a> {
         };
         Some(self.ast_builder.module_declaration_export_default_declaration(
           *span,
-          declaration,
           exported.clone(),
+          declaration,
         ))
       }
       ModuleDeclaration::ExportAllDeclaration(node) => {

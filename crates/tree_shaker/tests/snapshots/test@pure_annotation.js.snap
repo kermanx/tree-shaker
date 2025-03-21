@@ -1,48 +1,41 @@
 ---
-source: src/tests/mod.rs
-expression: tree_shake(input)
-input_file: src/tests/fixtures/pure_annotation.js
+source: crates/tree_shaker/tests/mod.rs
+expression: do_tree_shake(input)
+input_file: crates/tree_shaker/tests/fixtures/pure_annotation.js
 ---
-/*#__PURE__*/ unknown1(1, other1());
-/*#__PURE__*/ unknown2.g(
-	1,
-	other2(),
-	/*#__PURE__*/ other3()
-);
-/*#__PURE__*/ unknown3?.g().h(1, other4());
+unknown1(1, other1());
+unknown2.g(1, other2(), other3());
+unknown3?.g().h(1, other4());
 export const a = unknown4.g?.(1, other5());
 function simple() {
 	effect();
 	return a;
 }
-/*#__PURE__*/ simple();
-/*#__PURE__*/ simple(other1());
-export const b = /*#__PURE__*/ simple(other2());
-export const c = /*#__PURE__*/ simple(
-	0,
-	/*#__PURE__*/ other2()
-);
+simple();
+simple(other1());
+export const b = simple(other2());
+export const c = simple(0, other2());
 function nested1() {
-	return /*#__PURE__*/ simple();
+	return simple();
 }
 nested1(other1());
-export const d = /*#__PURE__*/ nested1(other2());
+export const d = nested1(other2());
 function nested2() {
 	unknown(1);
 	return unknown(2);
 }
-/*#__PURE__*/ nested2(other1());
-export const e = /*#__PURE__*/ nested2(other2());
+nested2(other1());
+export const e = nested2(other2());
 function mutate(obj) {
 	obj.a = b;
 	return obj.f();
 }
-/*#__PURE__*/ mutate({ f: () => effect() });
-export const f = /*#__PURE__*/ mutate({ f: effect });
+mutate({ f: () => effect() });
+export const f = mutate({ f: effect });
 class Class {
 	constructor() {
 		effect();
 	}
 }
-/*#__PURE__*/ new Class(other1());
-export const g = /*#__PURE__*/ new Class(other2());
+new Class(other1());
+export const g = new Class(other2());

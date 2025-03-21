@@ -14,12 +14,12 @@ impl<'a> Transformer<'a> {
     node: &'a PrivateInExpression<'a>,
     need_val: bool,
   ) -> Option<Expression<'a>> {
-    let PrivateInExpression { span, left, operator, right } = node;
+    let PrivateInExpression { span, left, right } = node;
 
     let right = self.transform_expression(right, need_val);
 
     if need_val {
-      Some(self.ast_builder.expression_private_in(*span, left.clone(), *operator, right.unwrap()))
+      Some(self.ast_builder.expression_private_in(*span, left.clone(), right.unwrap()))
     } else {
       right
     }

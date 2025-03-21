@@ -113,7 +113,7 @@ impl<'a> Transformer<'a> {
             let argument = self.transform_expression(argument, referred);
 
             if let Some(argument) = argument {
-              self.ast_builder.object_property_kind_spread_element(
+              self.ast_builder.object_property_kind_spread_property(
                 *span,
                 if referred {
                   argument

@@ -25,11 +25,7 @@ impl Found {
   }
 
   pub fn known(found: bool) -> Self {
-    if found {
-      Found::True
-    } else {
-      Found::False
-    }
+    if found { Found::True } else { Found::False }
   }
 }
 

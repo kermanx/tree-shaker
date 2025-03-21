@@ -1,7 +1,5 @@
-use oxc::ast::{
-  ast::{Expression, IdentifierName},
-  VisitMut,
-};
+use oxc::ast::ast::{Expression, IdentifierName};
+use oxc_ast_visit::VisitMut;
 
 use crate::{
   transformer::Transformer,

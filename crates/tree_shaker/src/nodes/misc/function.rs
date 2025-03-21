@@ -13,7 +13,6 @@ use oxc::{
     Function, FunctionType, TSThisParameter, TSTypeAnnotation, TSTypeParameterDeclaration,
   },
 };
-use std::rc::Rc;
 
 impl<'a> Analyzer<'a> {
   pub fn exec_function(&mut self, node: &'a Function<'a>) -> Entity<'a> {
@@ -39,7 +38,7 @@ impl<'a> Analyzer<'a> {
     callee: CalleeInfo<'a>,
     call_dep: Consumable<'a>,
     node: &'a Function<'a>,
-    variable_scopes: Rc<Vec<VariableScopeId>>,
+    variable_scopes: &'a [VariableScopeId],
     this: Entity<'a>,
     args: Entity<'a>,
     consume: bool,
@@ -49,7 +48,7 @@ impl<'a> Analyzer<'a> {
         analyzer.push_call_scope(
           callee,
           call_dep,
-          variable_scopes.as_ref().clone(),
+          variable_scopes.to_vec(),
           node.r#async,
           node.generator,
           consume,

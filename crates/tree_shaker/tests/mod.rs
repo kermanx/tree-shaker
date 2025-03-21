@@ -1,7 +1,7 @@
 use insta::{assert_snapshot, glob};
 use oxc::{codegen::CodegenOptions, minifier::MinifierOptions};
 use std::fs;
-use tree_shaker::{tree_shake, vfs::SingleFileFs, TreeShakeConfig, TreeShakeOptions};
+use tree_shaker::{TreeShakeConfig, TreeShakeOptions, tree_shake, vfs::SingleFileFs};
 
 fn do_tree_shake(input: String) -> String {
   let do_minify = input.contains("@minify");
@@ -11,7 +11,7 @@ fn do_tree_shake(input: String) -> String {
       vfs: SingleFileFs(input),
       config: TreeShakeConfig::recommended().with_react_jsx(react_jsx),
       minify_options: do_minify.then(|| MinifierOptions { mangle: None, ..Default::default() }),
-      codegen_options: CodegenOptions::default(),
+      codegen_options: CodegenOptions { annotation_comments: true, ..Default::default() },
     },
     SingleFileFs::ENTRY_PATH.to_string(),
   );

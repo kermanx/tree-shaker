@@ -13,10 +13,6 @@ impl<'a> Transformer<'a> {
     node: &'a ThisExpression,
     need_val: bool,
   ) -> Option<Expression<'a>> {
-    if need_val {
-      Some(self.ast_builder.expression_this(node.span))
-    } else {
-      None
-    }
+    if need_val { Some(self.ast_builder.expression_this(node.span)) } else { None }
   }
 }

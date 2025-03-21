@@ -61,14 +61,14 @@ impl<'a> Transformer<'a> {
             LiteralEntity::String("", _)
           )
         {
-          self.ast_builder.jsx_expression_jsx_empty_expression(expression.span())
+          self.ast_builder.jsx_expression_empty_expression(expression.span())
         } else {
           JSXExpression::from(build_effect!(self.ast_builder, expression.span(), effect; literal))
         }
       } else {
         match expression {
           JSXExpression::EmptyExpression(node) => {
-            self.ast_builder.jsx_expression_jsx_empty_expression(node.span)
+            self.ast_builder.jsx_expression_empty_expression(node.span)
           }
           node => {
             JSXExpression::from(self.transform_expression(node.to_expression(), true).unwrap())

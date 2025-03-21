@@ -1,3 +1,4 @@
+use oxc::allocator::{self, Allocator};
 use oxc_index::define_index_type;
 
 use crate::{
@@ -29,7 +30,7 @@ pub struct ObjectProperty<'a> {
   /// Is this property enumerable
   pub enumerable: bool,
   /// Possible values of this property
-  pub possible_values: Vec<ObjectPropertyValue<'a>>,
+  pub possible_values: allocator::Vec<'a, ObjectPropertyValue<'a>>,
   /// Why this property is non-existent
   pub non_existent: ConsumableCollector<'a>,
   /// The key entity. None if it is just LiteralEntity(key)
@@ -38,20 +39,18 @@ pub struct ObjectProperty<'a> {
   pub mangling: Option<MangleAtom>,
 }
 
-impl<'a> Default for ObjectProperty<'a> {
-  fn default() -> Self {
+impl<'a> ObjectProperty<'a> {
+  pub fn new_in(allocator: &'a Allocator) -> Self {
     Self {
       definite: true,
       enumerable: true,
-      possible_values: vec![],
-      non_existent: ConsumableCollector::default(),
+      possible_values: allocator::Vec::new_in(allocator),
+      non_existent: ConsumableCollector::new(allocator::Vec::new_in(allocator)),
       key: None,
       mangling: None,
     }
   }
-}
 
-impl<'a> ObjectProperty<'a> {
   pub(super) fn get(
     &mut self,
     analyzer: &Analyzer<'a>,
@@ -86,7 +85,7 @@ impl<'a> ObjectProperty<'a> {
   ) {
     let prev_key = self.key.unwrap();
     let prev_atom = self.mangling.unwrap();
-    let constraint = &*analyzer.factory.alloc(MangleConstraint::Eq(prev_atom, key_atom));
+    let constraint = MangleConstraint::Eq(prev_atom, key_atom);
     for possible_value in &self.possible_values {
       match possible_value {
         ObjectPropertyValue::Field(value, _) => context.values.push(analyzer.factory.mangable(
@@ -129,12 +128,16 @@ impl<'a> ObjectProperty<'a> {
     if writable {
       if !indeterminate {
         // Remove all writable fields
-        self.possible_values = self
-          .possible_values
-          .iter()
-          .filter(|possible_value| !matches!(possible_value, ObjectPropertyValue::Field(_, false)))
-          .cloned()
-          .collect();
+        self.possible_values = allocator::Vec::from_iter_in(
+          self
+            .possible_values
+            .iter()
+            .filter(|possible_value| {
+              !matches!(possible_value, ObjectPropertyValue::Field(_, false))
+            })
+            .cloned(),
+          analyzer.allocator,
+        );
         // This property must exist now
         self.non_existent.force_clear();
       }
@@ -162,11 +165,7 @@ impl<'a> ObjectProperty<'a> {
         found_others = false;
       }
     }
-    if found_others {
-      Found::Unknown
-    } else {
-      Found::known(found_setter)
-    }
+    if found_others { Found::Unknown } else { Found::known(found_setter) }
   }
 
   pub fn delete(&mut self, indeterminate: bool, dep: Consumable<'a>) {
@@ -178,7 +177,11 @@ impl<'a> ObjectProperty<'a> {
     self.non_existent.push(dep);
   }
 
-  pub fn consume(&self, analyzer: &mut Analyzer<'a>, suspended: &mut Vec<Entity<'a>>) {
+  pub fn consume(
+    &self,
+    analyzer: &mut Analyzer<'a>,
+    suspended: &mut allocator::Vec<'a, Entity<'a>>,
+  ) {
     for &possible_value in &self.possible_values {
       match possible_value {
         ObjectPropertyValue::Field(value, _) => suspended.push(value),

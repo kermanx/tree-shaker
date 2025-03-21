@@ -26,7 +26,7 @@ impl<'a> Transformer<'a> {
       Some(Expression::from(self.ast_builder.member_expression_static(
         *span,
         object,
-        self.ast_builder.identifier_name(property.span, property.name.clone()),
+        self.ast_builder.identifier_name(property.span, property.name),
         false,
       )))
     } else {

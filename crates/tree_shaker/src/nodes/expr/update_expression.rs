@@ -12,11 +12,7 @@ impl<'a> Analyzer<'a> {
     let numeric_value = value.get_to_numeric(self);
     let updated_value = self.op_update(numeric_value, node.operator);
     self.exec_simple_assignment_target_write(&node.argument, updated_value, cache);
-    if node.prefix {
-      updated_value
-    } else {
-      numeric_value
-    }
+    if node.prefix { updated_value } else { numeric_value }
   }
 }
 

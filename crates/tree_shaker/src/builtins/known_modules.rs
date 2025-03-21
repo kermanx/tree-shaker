@@ -1,8 +1,8 @@
 use super::{
+  Builtins,
   react::{
     create_class_names_namespace, create_react_jsx_runtime_namespace, create_react_namespace,
   },
-  Builtins,
 };
 use crate::entity::Entity;
 

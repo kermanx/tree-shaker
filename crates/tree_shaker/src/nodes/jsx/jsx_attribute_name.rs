@@ -13,7 +13,7 @@ impl<'a> Transformer<'a> {
     &self,
     node: &'a JSXAttributeName<'a>,
   ) -> JSXAttributeName<'a> {
-    self.ast_builder.jsx_attribute_name_jsx_identifier(
+    self.ast_builder.jsx_attribute_name_identifier(
       node.span(),
       self.transform_mangable_static_string(
         AstKind2::JSXAttributeName(node),
@@ -27,7 +27,7 @@ fn get_text<'a>(allocator: &'a Allocator, node: &'a JSXAttributeName<'a>) -> &'a
   match node {
     JSXAttributeName::Identifier(node) => node.name.as_str(),
     JSXAttributeName::NamespacedName(node) => {
-      allocator.alloc(format!("{}:{}", node.namespace.name, node.property.name))
+      allocator.alloc_str(&format!("{}:{}", node.namespace.name, node.name))
     }
   }
 }

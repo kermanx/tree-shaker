@@ -3,8 +3,8 @@ use crate::{
 };
 use oxc::{
   ast::{
-    ast::{CallExpression, Expression},
     NONE,
+    ast::{CallExpression, Expression},
   },
   span::SPAN,
 };

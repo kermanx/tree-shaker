@@ -1,4 +1,5 @@
 use crate::{
+  TreeShakeConfig,
   builtins::Builtins,
   dep::{DepId, ReferredDeps},
   entity::EntityFactory,
@@ -6,14 +7,13 @@ use crate::{
   mangling::Mangler,
   module::{ModuleId, Modules},
   scope::{
+    Scoping,
     conditional::ConditionalDataMap,
     exhaustive::{ExhaustiveCallback, ExhaustiveDepId},
-    r#loop::LoopDataMap,
-    Scoping,
+    // r#loop::LoopDataMap,
   },
   utils::ExtraData,
   vfs::Vfs,
-  TreeShakeConfig,
 };
 use oxc::{
   allocator::Allocator,
@@ -23,7 +23,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeSet, mem};
 
 pub struct Analyzer<'a> {
-  pub vfs: &'a dyn Vfs,
+  pub vfs: Box<dyn Vfs>,
   pub config: &'a TreeShakeConfig,
   pub allocator: &'a Allocator,
   pub factory: &'a EntityFactory<'a>,
@@ -39,7 +39,7 @@ pub struct Analyzer<'a> {
   pub exhaustive_callbacks: FxHashMap<ExhaustiveDepId, FxHashSet<ExhaustiveCallback<'a>>>,
   pub referred_deps: ReferredDeps,
   pub conditional_data: ConditionalDataMap<'a>,
-  pub loop_data: LoopDataMap<'a>,
+  // pub loop_data: LoopDataMap<'a>,
   pub folder: ConstantFolder<'a>,
   pub mangler: Mangler<'a>,
   pub pending_deps: FxHashSet<ExhaustiveCallback<'a>>,
@@ -47,13 +47,9 @@ pub struct Analyzer<'a> {
 }
 
 impl<'a> Analyzer<'a> {
-  pub fn new_in(
-    vfs: &'a dyn Vfs,
-    config: &'a TreeShakeConfig,
-    allocator: &'a Allocator,
-  ) -> &'a mut Self {
+  pub fn new_in(vfs: Box<dyn Vfs>, config: &'a TreeShakeConfig, allocator: &'a Allocator) -> Self {
     let factory = &*allocator.alloc(EntityFactory::new(allocator, config));
-    allocator.alloc(Analyzer {
+    Analyzer {
       vfs,
       config,
       allocator,
@@ -70,12 +66,12 @@ impl<'a> Analyzer<'a> {
       exhaustive_callbacks: Default::default(),
       referred_deps: Default::default(),
       conditional_data: Default::default(),
-      loop_data: Default::default(),
+      // loop_data: Default::default(),
       folder: Default::default(),
       mangler: Mangler::new(config.mangling.is_some(), allocator),
       pending_deps: Default::default(),
       diagnostics: Default::default(),
-    })
+    }
   }
 
   pub fn finalize(&mut self) {
@@ -94,7 +90,7 @@ impl<'a> Analyzer<'a> {
       dirty |= self.consume_top_level_uncaught();
       dirty |= self.call_exhaustive_callbacks();
       dirty |= self.post_analyze_handle_conditional();
-      dirty |= self.post_analyze_handle_loops();
+      // dirty |= self.post_analyze_handle_loops();
       dirty |= self.post_analyze_handle_folding();
       if !dirty {
         break;
@@ -108,11 +104,12 @@ impl<'a> Analyzer<'a> {
   }
 
   fn consume_top_level_uncaught(&mut self) -> bool {
+    let factory = self.factory;
     let thrown_values = &mut self.call_scope_mut().try_scopes.last_mut().unwrap().thrown_values;
     if thrown_values.is_empty() {
       false
     } else {
-      let values = mem::take(thrown_values);
+      let values = mem::replace(thrown_values, factory.vec());
       self.consume(values);
       true
     }

@@ -1,4 +1,8 @@
-use crate::{analyzer::Analyzer, consumable::ConsumableVec, entity::ObjectId};
+use crate::{
+  analyzer::Analyzer,
+  consumable::{ConsumableCollector, ConsumableVec},
+  entity::ObjectId,
+};
 use std::mem;
 
 use super::{cf_scope::CfScopeId, exhaustive::ExhaustiveDepId};
@@ -18,7 +22,7 @@ impl<'a> Analyzer<'a> {
 
     let mut has_exhaustive = false;
     let mut indeterminate = false;
-    let mut exec_deps = vec![];
+    let mut exec_deps = self.factory.vec();
     for depth in target_depth..self.scoping.cf.stack.len() {
       let scope = self.scoping.cf.get_mut_from_depth(depth);
       if !has_exhaustive {
@@ -41,6 +45,7 @@ impl<'a> Analyzer<'a> {
   }
 
   pub fn mark_object_consumed(&mut self, cf_scope: CfScopeId, object_id: ObjectId) {
+    let factory = self.factory;
     let target_depth = self.find_first_different_cf_scope(cf_scope);
     let mut marked = false;
     for depth in target_depth..self.scoping.cf.stack.len() {
@@ -48,7 +53,8 @@ impl<'a> Analyzer<'a> {
       if !marked {
         marked = scope.mark_exhaustive_write(ExhaustiveDepId::Object(object_id));
       }
-      mem::take(&mut scope.deps).consume_all(self);
+      let deps = mem::replace(&mut scope.deps, ConsumableCollector::new(factory.vec()));
+      deps.consume_all(self);
     }
     self.request_exhaustive_callbacks(ExhaustiveDepId::Object(object_id));
   }

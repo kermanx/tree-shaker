@@ -133,18 +133,10 @@ impl<'a> ValueTrait<'a> for LogicalResultEntity<'a> {
   }
 
   fn test_truthy(&self) -> Option<bool> {
-    if self.is_coalesce {
-      self.value.test_truthy()
-    } else {
-      self.result
-    }
+    if self.is_coalesce { self.value.test_truthy() } else { self.result }
   }
 
   fn test_nullish(&self) -> Option<bool> {
-    if self.is_coalesce {
-      self.result
-    } else {
-      self.value.test_nullish()
-    }
+    if self.is_coalesce { self.result } else { self.value.test_nullish() }
   }
 }

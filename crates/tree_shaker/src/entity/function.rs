@@ -1,6 +1,6 @@
 use super::{
-  consumed_object, Entity, EnumeratedProperties, IteratedElements, ObjectEntity, ObjectPrototype,
-  TypeofResult, ValueTrait,
+  Entity, EnumeratedProperties, IteratedElements, ObjectEntity, ObjectPrototype, TypeofResult,
+  ValueTrait, consumed_object,
 };
 use crate::{
   analyzer::Analyzer,
@@ -8,14 +8,14 @@ use crate::{
   scope::VariableScopeId,
   utils::{CalleeInfo, CalleeNode},
 };
-use oxc::span::GetSpan;
-use std::{cell::Cell, rc::Rc};
+use oxc::{allocator, span::GetSpan};
+use std::cell::Cell;
 
 #[derive(Debug)]
 pub struct FunctionEntity<'a> {
-  body_consumed: Rc<Cell<bool>>,
+  body_consumed: Cell<bool>,
   pub callee: CalleeInfo<'a>,
-  pub variable_scope_stack: Rc<Vec<VariableScopeId>>,
+  pub variable_scope_stack: allocator::Vec<'a, VariableScopeId>,
   pub finite_recursion: bool,
   pub statics: &'a ObjectEntity<'a>,
   /// The `prototype` property. Not `__proto__`.
@@ -115,7 +115,7 @@ impl<'a> ValueTrait<'a> for FunctionEntity<'a> {
       analyzer,
       analyzer.factory.empty_consumable,
       analyzer.factory.immutable_unknown,
-      analyzer.factory.arguments(vec![(false, props)]),
+      analyzer.factory.arguments(analyzer.factory.vec1((false, props))),
     )
   }
 
@@ -202,14 +202,13 @@ impl<'a> FunctionEntity<'a> {
     consume: bool,
   ) -> Entity<'a> {
     let call_dep = analyzer.consumable((self.callee.into_node(), dep));
-    let variable_scopes = self.variable_scope_stack.clone();
     let ret_val = match self.callee.node {
       CalleeNode::Function(node) => analyzer.call_function(
         self.into(),
         self.callee,
         call_dep,
         node,
-        variable_scopes,
+        &self.variable_scope_stack,
         this,
         args,
         consume,
@@ -218,7 +217,7 @@ impl<'a> FunctionEntity<'a> {
         self.callee,
         call_dep,
         node,
-        variable_scopes,
+        &self.variable_scope_stack,
         args,
         consume,
       ),
@@ -228,7 +227,7 @@ impl<'a> FunctionEntity<'a> {
           self.callee,
           call_dep,
           node,
-          variable_scopes,
+          &self.variable_scope_stack,
           this,
           args,
           consume,
@@ -301,9 +300,12 @@ impl<'a> Analyzer<'a> {
   pub fn new_function(&mut self, node: CalleeNode<'a>) -> &'a FunctionEntity<'a> {
     let (statics, prototype) = self.new_function_object(Some(node.into()));
     let function = self.factory.alloc(FunctionEntity {
-      body_consumed: Rc::new(Cell::new(false)),
+      body_consumed: Cell::new(false),
       callee: self.new_callee_info(node),
-      variable_scope_stack: Rc::new(self.scoping.variable.stack.clone()),
+      variable_scope_stack: allocator::Vec::from_iter_in(
+        self.scoping.variable.stack.iter().copied(),
+        self.allocator,
+      ),
       finite_recursion: self.has_finite_recursion_notation(node.span()),
       statics,
       prototype,

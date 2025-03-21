@@ -11,6 +11,6 @@ impl<'a> Transformer<'a> {
         _ => result.push(c),
       }
     }
-    self.allocator.alloc(result)
+    self.allocator.alloc_str(&result)
   }
 }

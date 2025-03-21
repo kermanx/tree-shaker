@@ -1,5 +1,5 @@
 use super::{
-  consumed_object, Entity, EnumeratedProperties, IteratedElements, TypeofResult, ValueTrait,
+  Entity, EnumeratedProperties, IteratedElements, TypeofResult, ValueTrait, consumed_object,
 };
 use crate::{analyzer::Analyzer, consumable::Consumable};
 use std::marker::PhantomData;
@@ -123,7 +123,7 @@ impl<'a> ValueTrait<'a> for UnknownEntity<'a> {
   }
 }
 
-impl<'a> UnknownEntity<'a> {
+impl UnknownEntity<'_> {
   pub fn new() -> Self {
     Self::default()
   }

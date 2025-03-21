@@ -7,8 +7,8 @@ mod react;
 mod utils;
 
 use crate::{
-  entity::{Entity, EntityFactory},
   TreeShakeConfig,
+  entity::{Entity, EntityFactory},
 };
 use known_modules::KnownModule;
 pub use prototypes::BuiltinPrototype;

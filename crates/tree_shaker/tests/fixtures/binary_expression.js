@@ -1,5 +1,3 @@
-// @minify
-
 export const strict_equality = (a, b) => ({
   s1: 1 === 1,
   s2: 1 === "1",

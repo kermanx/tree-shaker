@@ -1,6 +1,6 @@
 use super::{
-  consumed_object, never::NeverEntity, Entity, EntityFactory, EnumeratedProperties,
-  IteratedElements, ObjectEntity, ObjectPrototype, TypeofResult, ValueTrait,
+  Entity, EntityFactory, EnumeratedProperties, IteratedElements, ObjectEntity, ObjectPrototype,
+  TypeofResult, ValueTrait, consumed_object, never::NeverEntity,
 };
 use crate::{analyzer::Analyzer, consumable::Consumable};
 use std::fmt::Debug;
@@ -104,7 +104,7 @@ impl<'a, T: BuiltinFnEntity<'a>> ValueTrait<'a> for T {
       analyzer,
       analyzer.factory.empty_consumable,
       analyzer.factory.immutable_unknown,
-      analyzer.factory.arguments(vec![(false, props)]),
+      analyzer.factory.arguments(analyzer.factory.vec1((false, props))),
     )
   }
 

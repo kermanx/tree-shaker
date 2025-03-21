@@ -78,7 +78,7 @@ impl<'a> Transformer<'a> {
         if need_binding && binding.is_none() {
           Some(self.ast_builder.assignment_target_property_assignment_target_property_property(
             *span,
-            self.ast_builder.property_key_identifier_name(binding_span, binding_name),
+            self.ast_builder.property_key_static_identifier(binding_span, binding_name),
             if let Some(init) = init {
               self.ast_builder.assignment_target_maybe_default_assignment_target_with_default(
                 *span,

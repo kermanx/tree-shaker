@@ -17,14 +17,14 @@ use crate::{
   init_namespace,
 };
 pub use class_names::create_class_names_namespace;
-use context::{create_react_create_context_impl, create_react_use_context_impl, ReactContexts};
+use context::{ReactContexts, create_react_create_context_impl, create_react_use_context_impl};
 use create_element::create_react_create_element_impl;
 use dependencies::ReactDependencies;
 use forward_ref::create_react_forward_ref_impl;
 use jsx::create_react_jsx_impl;
 use jsxs::create_react_jsxs_impl;
 use memo::create_react_memo_impl;
-use use_memo::{create_react_use_memo_impl, ReactUseMemos};
+use use_memo::{ReactUseMemos, create_react_use_memo_impl};
 
 #[derive(Debug, Default)]
 pub struct AnalyzerDataForReact<'a> {
@@ -40,9 +40,9 @@ pub fn create_react_namespace<'a>(
 ) -> Entity<'a> {
   let namespace =
     factory.builtin_object(REACT_NAMESPACE_OBJECT_ID, ObjectPrototype::ImplicitOrNull, false);
-  namespace.init_rest(ObjectPropertyValue::Field(factory.immutable_unknown, true));
+  namespace.init_rest(factory, ObjectPropertyValue::Field(factory.immutable_unknown, true));
 
-  init_namespace!(namespace, {
+  init_namespace!(namespace, factory, {
     "forwardRef" => create_react_forward_ref_impl(factory),
     "memo" => create_react_memo_impl(factory),
     "createElement" => create_react_create_element_impl(factory),
@@ -63,9 +63,9 @@ pub fn create_react_jsx_runtime_namespace<'a>(
     ObjectPrototype::ImplicitOrNull,
     false,
   );
-  object.init_rest(ObjectPropertyValue::Field(factory.immutable_unknown, true));
+  object.init_rest(factory, ObjectPropertyValue::Field(factory.immutable_unknown, true));
 
-  init_namespace!(object, {
+  init_namespace!(object, factory, {
     "jsx" => create_react_jsx_impl(factory),
     "jsxs" => create_react_jsxs_impl(factory),
   });

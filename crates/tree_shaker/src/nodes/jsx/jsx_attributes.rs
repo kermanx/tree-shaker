@@ -70,7 +70,7 @@ impl<'a> Transformer<'a> {
           let JSXAttribute { span, name, value } = node.as_ref();
 
           if let Some(value) = self.transform_jsx_attribute_value_as_item(value, is_referred) {
-            transformed.push(self.ast_builder.jsx_attribute_item_jsx_attribute(
+            transformed.push(self.ast_builder.jsx_attribute_item_attribute(
               *span,
               self.transform_jsx_attribute_name_need_val(name),
               Some(value),
@@ -81,7 +81,7 @@ impl<'a> Transformer<'a> {
           let JSXSpreadAttribute { span, argument } = node.as_ref();
 
           if is_referred {
-            transformed.push(self.ast_builder.jsx_attribute_item_jsx_spread_attribute(
+            transformed.push(self.ast_builder.jsx_attribute_item_spread_attribute(
               *span,
               self.transform_expression(argument, true).unwrap(),
             ))

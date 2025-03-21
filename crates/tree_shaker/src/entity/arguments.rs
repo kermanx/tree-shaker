@@ -1,14 +1,17 @@
+use oxc::allocator;
+
 use super::{
-  consumed_object, Entity, EnumeratedProperties, IteratedElements, ObjectPrototype, TypeofResult,
-  ValueTrait,
+  Entity, EnumeratedProperties, IteratedElements, ObjectPrototype, TypeofResult, ValueTrait,
+  consumed_object,
 };
 use crate::{analyzer::Analyzer, consumable::Consumable, use_consumed_flag};
+
 use std::cell::Cell;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ArgumentsEntity<'a> {
   pub consumed: Cell<bool>,
-  pub arguments: Vec<(bool, Entity<'a>)>,
+  pub arguments: allocator::Vec<'a, (bool, Entity<'a>)>,
 }
 
 impl<'a> ValueTrait<'a> for ArgumentsEntity<'a> {
@@ -95,14 +98,14 @@ impl<'a> ValueTrait<'a> for ArgumentsEntity<'a> {
 
   fn iterate(&'a self, analyzer: &mut Analyzer<'a>, dep: Consumable<'a>) -> IteratedElements<'a> {
     let mut elements = Vec::new();
-    let mut rest: Option<Vec<Entity<'a>>> = None;
+    let mut rest: Option<allocator::Vec<'a, Entity<'a>>> = None;
     for (spread, entity) in &self.arguments {
       if *spread {
         if let Some(iterated) = entity.iterate_result_union(analyzer, dep) {
           if let Some(rest) = &mut rest {
             rest.push(iterated);
           } else {
-            rest = Some(vec![iterated]);
+            rest = Some(analyzer.factory.vec1(iterated));
           }
         }
       } else if let Some(rest) = &mut rest {

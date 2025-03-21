@@ -11,7 +11,7 @@ impl<'a> Analyzer<'a> {
     &self,
     lhs: Entity<'a>,
     rhs: Entity<'a>,
-  ) -> (Option<bool>, Option<MangleConstraint>) {
+  ) -> (Option<bool>, Option<MangleConstraint<'a>>) {
     if let (Some(true), m) = self.op_strict_eq(lhs, rhs) {
       return (Some(true), m);
     }
@@ -27,9 +27,9 @@ impl<'a> Analyzer<'a> {
     &self,
     lhs: Entity<'a>,
     rhs: Entity<'a>,
-  ) -> (Option<bool>, Option<MangleConstraint>) {
+  ) -> (Option<bool>, Option<MangleConstraint<'a>>) {
     if let (Some(eq), m) = self.op_loose_eq(lhs, rhs) {
-      return (Some(!eq), m.map(MangleConstraint::negate_equality));
+      return (Some(!eq), m.map(|m| m.negate_equality(self.allocator)));
     }
 
     let lhs_lit = lhs.get_literal(self);
@@ -37,7 +37,7 @@ impl<'a> Analyzer<'a> {
     if let (Some(lhs_lit), Some(rhs_lit)) = (lhs_lit, rhs_lit) {
       if lhs_lit.test_typeof() == rhs_lit.test_typeof() {
         let (eq, m) = lhs_lit.strict_eq(rhs_lit);
-        return (Some(!eq), m.map(MangleConstraint::negate_equality));
+        return (Some(!eq), m.map(|m| m.negate_equality(self.allocator)));
       }
     }
 
@@ -48,7 +48,7 @@ impl<'a> Analyzer<'a> {
     &self,
     lhs: Entity<'a>,
     rhs: Entity<'a>,
-  ) -> (Option<bool>, Option<MangleConstraint>) {
+  ) -> (Option<bool>, Option<MangleConstraint<'a>>) {
     // TODO: Find another way to do this
     // if Entity::ptr_eq(lhs, rhs) {
     //   return Some(true);
@@ -70,7 +70,7 @@ impl<'a> Analyzer<'a> {
         return (Some(eq), m);
       }
 
-      let mut constraints = Some(vec![]);
+      let mut constraints = Some(self.allocator.alloc(self.factory.vec()));
       let mut all_neq = true;
       'check: for l in &lhs_lit {
         for r in &rhs_lit {
@@ -90,7 +90,7 @@ impl<'a> Analyzer<'a> {
 
       return (
         if all_neq { Some(false) } else { None },
-        constraints.map(MangleConstraint::Multiple),
+        constraints.map(|m| MangleConstraint::Multiple(m)),
       );
     }
 
@@ -101,9 +101,9 @@ impl<'a> Analyzer<'a> {
     &self,
     lhs: Entity<'a>,
     rhs: Entity<'a>,
-  ) -> (Option<bool>, Option<MangleConstraint>) {
+  ) -> (Option<bool>, Option<MangleConstraint<'a>>) {
     let (eq, m) = self.op_strict_eq(lhs, rhs);
-    (eq.map(|v| !v), m.map(MangleConstraint::negate_equality))
+    (eq.map(|v| !v), m.map(|m| m.negate_equality(self.allocator)))
   }
 
   pub fn op_lt(&self, lhs: Entity<'a>, rhs: Entity<'a>, eq: bool) -> Option<bool> {
@@ -180,7 +180,7 @@ impl<'a> Analyzer<'a> {
     let lhs_lit = lhs.get_literal(self);
     let rhs_lit = rhs.get_literal(self);
 
-    let mut values = vec![];
+    let mut values = self.factory.vec();
 
     let may_convert_to_num = TypeofResult::Number
       | TypeofResult::Boolean
@@ -223,7 +223,7 @@ impl<'a> Analyzer<'a> {
       match (lhs_str_lit, rhs_str_lit) {
         (Some(LiteralEntity::String(l, _)), Some(LiteralEntity::String(r, _))) => {
           let val = l.to_string() + r;
-          values.push(self.factory.string(self.allocator.alloc(val)));
+          values.push(self.factory.string(self.allocator.alloc_str(&val)));
         }
         _ => {
           values.push(self.factory.unknown_string);
@@ -280,7 +280,7 @@ impl<'a> Analyzer<'a> {
 
     let input_t = input.test_typeof();
 
-    let mut values = vec![];
+    let mut values = self.factory.vec();
     if input_t.contains(TypeofResult::BigInt) {
       values.push(self.factory.unknown_bigint);
     }
@@ -306,17 +306,14 @@ impl<'a> Analyzer<'a> {
     let to_result =
       |result: Option<bool>| factory.computed(factory.boolean_maybe_unknown(result), (lhs, rhs));
 
-    let to_eq_result = |(equality, mangle_constraint): (Option<bool>, Option<MangleConstraint>)| {
-      if let Some(mangle_constraint) = mangle_constraint {
-        factory.mangable(
-          factory.boolean_maybe_unknown(equality),
-          (lhs, rhs),
-          factory.alloc(mangle_constraint),
-        )
-      } else {
-        to_result(equality)
-      }
-    };
+    let to_eq_result =
+      |(equality, mangle_constraint): (Option<bool>, Option<MangleConstraint<'a>>)| {
+        if let Some(mangle_constraint) = mangle_constraint {
+          factory.mangable(factory.boolean_maybe_unknown(equality), (lhs, rhs), mangle_constraint)
+        } else {
+          to_result(equality)
+        }
+      };
 
     match operator {
       BinaryOperator::Equality => to_eq_result(self.op_loose_eq(lhs, rhs)),
@@ -348,11 +345,7 @@ impl<'a> Analyzer<'a> {
           BinaryOperator::Exponential => l.powf(r),
           _ => unreachable!(),
         };
-        if value.is_nan() {
-          factory.nan
-        } else {
-          factory.number(value, None)
-        }
+        if value.is_nan() { factory.nan } else { factory.number(value, None) }
       }),
 
       BinaryOperator::ShiftLeft

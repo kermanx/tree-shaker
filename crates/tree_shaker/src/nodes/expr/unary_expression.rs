@@ -6,6 +6,7 @@ use crate::{
   transformer::Transformer,
 };
 use oxc::{
+  allocator,
   ast::ast::{Expression, UnaryExpression, UnaryOperator},
   span::SPAN,
 };
@@ -73,19 +74,17 @@ impl<'a> Analyzer<'a> {
       ),
       UnaryOperator::BitwiseNot => self.factory.computed(
         if let Some(literals) = argument.get_to_numeric(self).get_to_literals(self) {
-          self.factory.union(
-            literals
-              .into_iter()
-              .map(|lit| match lit {
-                LiteralEntity::Number(num, _) => {
-                  let num = !num.0.to_int_32();
-                  self.factory.number(num as f64, None)
-                }
-                LiteralEntity::NaN => self.factory.number(-1f64, None),
-                _ => self.factory.unknown_primitive,
-              })
-              .collect::<Vec<_>>(),
-          )
+          self.factory.union(allocator::Vec::from_iter_in(
+            literals.into_iter().map(|lit| match lit {
+              LiteralEntity::Number(num, _) => {
+                let num = !num.0.to_int_32();
+                self.factory.number(num as f64, None)
+              }
+              LiteralEntity::NaN => self.factory.number(-1f64, None),
+              _ => self.factory.unknown_primitive,
+            }),
+            self.allocator,
+          ))
         } else {
           self.factory.computed_unknown_primitive(argument)
         },

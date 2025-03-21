@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::{
   analyzer::Analyzer,
   ast::{AstKind2, DeclarationKind},
@@ -13,11 +11,11 @@ use crate::{
 use oxc::{
   allocator,
   ast::{
+    NONE,
     ast::{
       Class, ClassBody, ClassElement, ClassType, MethodDefinition, MethodDefinitionKind,
       PropertyDefinitionType, PropertyKind, StaticBlock,
     },
-    NONE,
   },
   span::GetSpan,
 };
@@ -146,14 +144,14 @@ impl<'a> Analyzer<'a> {
     callee: CalleeInfo<'a>,
     call_dep: Consumable<'a>,
     node: &'a Class<'a>,
-    variable_scopes: Rc<Vec<VariableScopeId>>,
+    variable_scopes: &'a [VariableScopeId],
     this: Entity<'a>,
     args: Entity<'a>,
     consume: bool,
   ) -> Entity<'a> {
     let data = self.load_data::<Data>(AstKind2::Class(node));
 
-    self.push_call_scope(callee, call_dep, variable_scopes.as_ref().clone(), false, false, consume);
+    self.push_call_scope(callee, call_dep, variable_scopes.to_vec(), false, false, consume);
     let super_class = data.super_class.unwrap_or(self.factory.undefined);
     let variable_scope = self.variable_scope_mut();
     variable_scope.this = Some(this);

@@ -1,11 +1,11 @@
 use crate::{
-  builtins::{constants::SYMBOL_CONSTRUCTOR_OBJECT_ID, Builtins},
+  builtins::{Builtins, constants::SYMBOL_CONSTRUCTOR_OBJECT_ID},
   entity::{ObjectPropertyValue, ObjectPrototype},
   init_namespace,
 };
 use std::borrow::BorrowMut;
 
-impl<'a> Builtins<'a> {
+impl Builtins<'_> {
   pub fn init_symbol_constructor(&mut self) {
     let factory = self.factory;
 
@@ -14,9 +14,9 @@ impl<'a> Builtins<'a> {
       ObjectPrototype::Builtin(&self.prototypes.function),
       false,
     );
-    object.init_rest(ObjectPropertyValue::Field(factory.immutable_unknown, true));
+    object.init_rest(factory, ObjectPropertyValue::Field(factory.immutable_unknown, true));
 
-    init_namespace!(object, {
+    init_namespace!(object, factory, {
       "prototype" => factory.immutable_unknown,
       // "asyncIterator" => factory.string("__#asyncIterator__"),
       // "hasInstance" => factory.string("__#hasInstance__"),

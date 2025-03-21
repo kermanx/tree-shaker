@@ -1,6 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use std::{fs::read_to_string, path::Path};
-use tree_shaker::{tree_shake, vfs::SingleFileFs, TreeShakeConfig, TreeShakeOptions};
+use tree_shaker::{TreeShakeConfig, TreeShakeOptions, tree_shake, vfs::SingleFileFs};
 
 fn run_tree_shaker(source_text: String) -> String {
   let result = tree_shake(

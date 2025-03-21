@@ -119,6 +119,7 @@ pub enum AstKind2<'a> {
 
   // extras
   Expression(&'a Expression<'a>),
+  SwitchCaseTest(&'a SwitchCase<'a>),
   AssignmentTargetProperty(&'a AssignmentTargetProperty<'a>),
   AssignmentTargetPropertyIdentifier(&'a AssignmentTargetPropertyIdentifier<'a>),
   AssignmentTargetRest(&'a AssignmentTargetRest<'a>),
@@ -132,7 +133,7 @@ pub enum AstKind2<'a> {
   JSXAttributeName(&'a JSXAttributeName<'a>),
 }
 
-impl<'a> GetSpan for AstKind2<'a> {
+impl GetSpan for AstKind2<'_> {
   fn span(&self) -> Span {
     match self {
       AstKind2::Environment | AstKind2::Index(_) => SPAN,
@@ -238,6 +239,7 @@ impl<'a> GetSpan for AstKind2<'a> {
       AstKind2::JSXMemberExpression(node) => node.span(),
       AstKind2::JsxExpressionContainer(node) => node.span(),
       AstKind2::Expression(node) => node.span(),
+      AstKind2::SwitchCaseTest(node) => node.span(),
       AstKind2::AssignmentTargetProperty(node) => node.span(),
       AstKind2::AssignmentTargetPropertyIdentifier(node) => node.span(),
       AstKind2::AssignmentTargetRest(node) => node.span(),
@@ -253,7 +255,7 @@ impl<'a> GetSpan for AstKind2<'a> {
   }
 }
 
-impl<'a> fmt::Debug for AstKind2<'a> {
+impl fmt::Debug for AstKind2<'_> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     self.span().fmt(f)
   }

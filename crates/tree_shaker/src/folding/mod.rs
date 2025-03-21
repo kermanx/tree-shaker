@@ -3,7 +3,7 @@ mod dep;
 use std::{cell::RefCell, mem};
 
 use dep::{FoldableDep, UnFoldableDep};
-use oxc::{ast::ast::Expression, span::GetSpan};
+use oxc::{allocator, ast::ast::Expression, span::GetSpan};
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -36,11 +36,11 @@ impl<'a> FoldingState<'a> {
   }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct FoldingData<'a> {
   pub state: FoldingState<'a>,
-  pub used_values: Vec<Entity<'a>>,
-  pub used_mangle_atoms: Vec<MangleAtom>,
+  pub used_values: allocator::Vec<'a, Entity<'a>>,
+  pub used_mangle_atoms: allocator::Vec<'a, MangleAtom>,
 }
 
 #[derive(Debug, Default)]
@@ -58,11 +58,13 @@ impl<'a> Analyzer<'a> {
   }
 
   pub fn try_fold_node(&mut self, node: AstKind2<'a>, value: Entity<'a>) -> Entity<'a> {
-    let data = *self
-      .folder
-      .nodes
-      .entry(node.into())
-      .or_insert_with(|| self.factory.alloc(RefCell::new(FoldingData::default())));
+    let data = *self.folder.nodes.entry(node.into()).or_insert_with(|| {
+      self.factory.alloc(RefCell::new(FoldingData {
+        state: FoldingState::Initial,
+        used_values: self.factory.vec(),
+        used_mangle_atoms: self.factory.vec(),
+      }))
+    });
     if !data.borrow().state.is_foldable() {
       value
     } else if let Some(literal) = self.get_foldable_literal(value) {
@@ -85,7 +87,7 @@ impl<'a> Analyzer<'a> {
           }
         }
       } else {
-        let values = mem::take(&mut data.used_values);
+        let values = data.used_values.drain(..).collect::<Vec<_>>();
         mem::drop(data);
         for value in values {
           value.consume_mangable(self);

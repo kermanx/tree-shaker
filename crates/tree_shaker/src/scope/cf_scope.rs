@@ -151,7 +151,7 @@ impl<'a> Analyzer<'a> {
   }
 
   pub fn get_exec_dep(&mut self, target_depth: usize) -> Consumable<'a> {
-    let mut deps = vec![];
+    let mut deps = self.factory.vec();
     for id in target_depth..self.scoping.cf.stack.len() {
       let scope = self.scoping.cf.get_mut_from_depth(id);
       if let Some(dep) = scope.deps.try_collect(self.factory) {
@@ -282,17 +282,18 @@ impl<'a> Analyzer<'a> {
       return;
     }
 
+    let factory = self.factory;
     for depth in (0..self.scoping.cf.stack.len()).rev() {
       let scope = self.scoping.cf.get_mut_from_depth(depth);
       match scope.referred_state {
         ReferredState::Never => {
           scope.referred_state = ReferredState::ReferredClean;
-          mem::take(&mut scope.deps).consume_all(self);
+          mem::replace(&mut scope.deps, ConsumableCollector::new(factory.vec())).consume_all(self);
         }
         ReferredState::ReferredClean => break,
         ReferredState::ReferredDirty => {
           scope.referred_state = ReferredState::ReferredClean;
-          mem::take(&mut scope.deps).consume_all(self);
+          mem::replace(&mut scope.deps, ConsumableCollector::new(factory.vec())).consume_all(self);
           for depth in (0..depth).rev() {
             let scope = self.scoping.cf.get_mut_from_depth(depth);
             match scope.referred_state {

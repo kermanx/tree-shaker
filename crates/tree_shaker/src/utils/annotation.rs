@@ -1,7 +1,7 @@
 use crate::analyzer::Analyzer;
 use oxc::{ast::CommentKind, span::Span};
 
-impl<'a> Analyzer<'a> {
+impl Analyzer<'_> {
   fn has_annotation(&self, span: Span, test: fn(&str) -> bool) -> bool {
     let Some(comment) = self.semantic().comments_range(..span.start).next_back() else {
       return false;

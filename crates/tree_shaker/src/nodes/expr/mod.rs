@@ -76,7 +76,8 @@ impl<'a> Analyzer<'a> {
       Expression::JSXElement(node) => self.exec_jsx_element(node),
       Expression::JSXFragment(node) => self.exec_jsx_fragment(node),
 
-      Expression::TSAsExpression(_)
+      Expression::V8IntrinsicExpression(_)
+      | Expression::TSAsExpression(_)
       | Expression::TSInstantiationExpression(_)
       | Expression::TSTypeAssertion(_)
       | Expression::TSNonNullExpression(_)
@@ -153,7 +154,8 @@ impl<'a> Transformer<'a> {
       Expression::JSXElement(node) => self.transform_jsx_element(node, need_val),
       Expression::JSXFragment(node) => self.transform_jsx_fragment(node, need_val),
 
-      Expression::TSAsExpression(_)
+      Expression::V8IntrinsicExpression(_)
+      | Expression::TSAsExpression(_)
       | Expression::TSInstantiationExpression(_)
       | Expression::TSTypeAssertion(_)
       | Expression::TSNonNullExpression(_)

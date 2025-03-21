@@ -130,7 +130,7 @@ impl<'a> Analyzer<'a> {
 
     self.push_cf_scope_with_deps(
       kind,
-      vec![self.consumable(dep)],
+      self.factory.vec1(self.consumable(dep)),
       if maybe_true && maybe_false { None } else { Some(false) },
     );
 
@@ -218,7 +218,7 @@ impl<'a> Analyzer<'a> {
   }
 }
 
-impl<'a> Transformer<'a> {
+impl Transformer<'_> {
   pub fn get_conditional_result(&self, dep_id: impl Into<DepId>) -> (bool, bool, bool) {
     let data = &self.conditional_data.node_to_data[&dep_id.into()];
     if data.maybe_true && data.maybe_false {

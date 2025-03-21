@@ -28,7 +28,7 @@ impl<'a> Analyzer<'a> {
       self.consumable(AstKind2::ForStatement(node))
     };
 
-    self.push_cf_scope_with_deps(CfScopeKind::LoopBreak, vec![dep], Some(false));
+    self.push_cf_scope_with_deps(CfScopeKind::LoopBreak, self.factory.vec1(dep), Some(false));
     self.exec_loop(move |analyzer| {
       if analyzer.cf_scope().must_exited() {
         return;
