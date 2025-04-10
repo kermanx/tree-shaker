@@ -5,7 +5,7 @@ use oxc::{
   allocator::FromIn,
   ast::ast::{ImportDeclaration, Program, Statement},
   parser::Parser,
-  semantic::{Semantic, SemanticBuilder, SymbolId},
+  semantic::{ScopeId, Semantic, SemanticBuilder, SymbolId},
   span::{Atom, SourceType},
 };
 use oxc_index::{IndexVec, define_index_type};
@@ -29,6 +29,8 @@ pub struct ModuleInfo<'a> {
   pub program: &'a UnsafeCell<Program<'a>>,
   pub semantic: Rc<Semantic<'a>>,
   pub call_id: DepAtom,
+
+  pub scopes_depth: FxHashMap<ScopeId, usize>,
 
   pub named_exports: FxHashMap<Atom<'a>, (VariableScopeId, SymbolId)>,
   pub default_export: Option<Entity<'a>>,
@@ -91,12 +93,15 @@ impl<'a> Analyzer<'a> {
     }
     let semantic = SemanticBuilder::new().build(unsafe { &*program.get() }).semantic;
     let semantic = Rc::new(semantic);
+    let scopes_depth = FxHashMap::from_iter([(semantic.scoping().root_scope_id(), 0)]);
     let module_id = self.modules.modules.push(ModuleInfo {
       path: Atom::from_in(path.clone(), self.allocator),
       line_index,
       program,
       semantic,
       call_id: DepAtom::from_counter(),
+
+      scopes_depth,
 
       named_exports: Default::default(),
       default_export: Default::default(),

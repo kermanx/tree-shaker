@@ -9,6 +9,7 @@ pub mod variable_scope;
 use call_scope::CallScope;
 use cf_scope::CfScope;
 pub use cf_scope::{CfScopeId, CfScopeKind};
+use oxc::semantic::ScopeId;
 use scope_tree::ScopeTree;
 use try_scope::TryScope;
 use variable_scope::VariableScope;
@@ -34,9 +35,7 @@ pub struct Scoping<'a> {
 
 impl<'a> Scoping<'a> {
   pub fn new(factory: &Factory<'a>) -> Self {
-    let mut variable = ScopeTree::new();
-    variable.push(VariableScope::new_with_this(factory.unknown));
-    let mut cf = ScopeTree::new();
+    let mut cf = ScopeTree::default();
     cf.push(CfScope::new(CfScopeKind::Root, factory.vec(), Some(false)));
     Scoping {
       call: vec![CallScope::new_in(
@@ -55,7 +54,7 @@ impl<'a> Scoping<'a> {
         false,
         factory.allocator,
       )],
-      variable,
+      variable: ScopeTree::default(),
       cf,
       pure: 0,
 
@@ -135,7 +134,7 @@ impl<'a> Analyzer<'a> {
 
     self.module_stack.push(callee.module_id);
     let old_variable_scope_stack = self.replace_variable_scope_stack(variable_scope_stack);
-    let body_variable_scope = self.push_variable_scope();
+    let body_variable_scope = self.push_variable_scope(callee.scope_id());
     let cf_scope_depth = self.push_cf_scope_with_deps(
       CfScopeKind::Function,
       self.factory.vec1(self.dep((call_dep, dep_id))),
@@ -164,8 +163,18 @@ impl<'a> Analyzer<'a> {
     ret_val
   }
 
-  pub fn push_variable_scope(&mut self) -> VariableScopeId {
-    self.scoping.variable.push(VariableScope::new())
+  pub fn set_variable_scope_depth(&mut self, scope: ScopeId) {
+    let depth = self.scoping.variable.current_depth();
+    if let Some(&existing) = self.module_info().scopes_depth.get(&scope) {
+      debug_assert_eq!(existing, depth, "Scope: {scope:?} already exists");
+    }
+    self.module_info_mut().scopes_depth.insert(scope, depth);
+  }
+
+  pub fn push_variable_scope(&mut self, scope: ScopeId) -> VariableScopeId {
+    let id = self.scoping.variable.push(VariableScope::new());
+    self.set_variable_scope_depth(scope);
+    id
   }
 
   pub fn pop_variable_scope(&mut self) -> VariableScopeId {

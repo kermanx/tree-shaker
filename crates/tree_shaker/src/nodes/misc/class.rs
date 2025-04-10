@@ -174,6 +174,7 @@ impl<'a> Analyzer<'a> {
       let function = constructor.value.as_ref();
       let dep = self.factory.dep(AstKind2::Function(function));
       self.cf_scope_mut().push_dep(dep);
+      self.set_variable_scope_depth(constructor.value.scope_id());
       self.exec_formal_parameters(&function.params, args, DeclarationKind::FunctionParameter);
       self.exec_function_body(function.body.as_ref().unwrap());
       if consume {

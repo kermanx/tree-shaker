@@ -6,6 +6,8 @@ impl<'a> Analyzer<'a> {
   pub fn exec_block_statement(&mut self, node: &'a BlockStatement) {
     let data = self.load_data::<StatementVecData>(AstKind2::BlockStatement(node));
 
+    self.set_variable_scope_depth(node.scope_id());
+
     self.exec_statement_vec(data, &node.body);
   }
 }
