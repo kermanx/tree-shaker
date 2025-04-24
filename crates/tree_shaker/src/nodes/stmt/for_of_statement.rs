@@ -16,6 +16,7 @@ impl<'a> Analyzer<'a> {
       right
     };
 
+    self.set_variable_scope_depth(node.scope_id());
     self.declare_for_statement_left(&node.left);
 
     let Some(iterated) = right.iterate_result_union(self, AstKind2::ForOfStatement(node)) else {

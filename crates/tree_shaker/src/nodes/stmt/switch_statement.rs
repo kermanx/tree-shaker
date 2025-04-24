@@ -10,6 +10,8 @@ use crate::{
 
 impl<'a> Analyzer<'a> {
   pub fn exec_switch_statement(&mut self, node: &'a SwitchStatement<'a>) {
+    self.set_variable_scope_depth(node.scope_id());
+
     // 1. discriminant
     let discriminant = self.exec_expression(&node.discriminant);
     self.push_dependent_cf_scope(discriminant);

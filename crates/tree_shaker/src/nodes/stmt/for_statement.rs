@@ -7,6 +7,8 @@ use crate::{analyzer::Analyzer, ast::AstKind2, scope::CfScopeKind, transformer::
 
 impl<'a> Analyzer<'a> {
   pub fn exec_for_statement(&mut self, node: &'a ForStatement<'a>) {
+    self.set_variable_scope_depth(node.scope_id());
+
     if let Some(init) = &node.init {
       match init {
         ForStatementInit::VariableDeclaration(node) => {

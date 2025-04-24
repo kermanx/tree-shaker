@@ -81,6 +81,16 @@ impl<'a> CalleeInfo<'a> {
   pub fn into_node(self) -> AstKind2<'a> {
     self.node.into()
   }
+
+  pub fn scope_id(self) -> ScopeId {
+    match self.node {
+      CalleeNode::Function(node) => node.scope_id(),
+      CalleeNode::ArrowFunctionExpression(node) => node.scope_id(),
+      CalleeNode::ClassStatics(node) => node.scope_id(),
+      CalleeNode::ClassConstructor(node) => node.scope_id(),
+      _ => unreachable!(),
+    }
+  }
 }
 
 impl<'a> Analyzer<'a> {

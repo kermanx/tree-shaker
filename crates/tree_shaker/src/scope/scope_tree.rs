@@ -13,15 +13,11 @@ pub struct ScopeTree<I: Idx, T> {
 
 impl<I: Idx, T> Default for ScopeTree<I, T> {
   fn default() -> Self {
-    Self::new()
+    Self { nodes: IndexVec::new(), stack: vec![] }
   }
 }
 
 impl<I: Idx, T> ScopeTree<I, T> {
-  pub fn new() -> Self {
-    ScopeTree { nodes: IndexVec::new(), stack: vec![] }
-  }
-
   pub fn current_id(&self) -> I {
     *self.stack.last().unwrap()
   }
