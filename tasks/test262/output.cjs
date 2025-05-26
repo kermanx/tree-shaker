@@ -37,6 +37,8 @@ process.stdin.on('end', () => {
     }
   }
 
+  fs.writeFileSync(path.join(__dirname, 'outputs.txt'), input);
+
   const failedList = Object.entries(failedTests).map(([name, message]) => {
     return `[${name}](https://github.com/tc39/test262/tree/main/test/${name}): \`${message.trim()}\``;
   }).join('\n');
@@ -46,7 +48,7 @@ process.stdin.on('end', () => {
   const total = +stat.match(/^Ran (\d+) tests$/m)[1];
   const passedNum = +stat.match(/^(\d+) passed$/m)[1];
   const failedNum = Object.keys(failedTests).length;
-  const restMessage = stat.match(/^Treeshake[\s\S]+/m)[0];
+  const restMessage = stat.match(/^Treeshake[\s\S]+/m)?.[0] ?? "";
   fs.writeFileSync(path.join(__dirname, 'stat.txt'), `## Test262 Result
 
 - **Failed: ${failedNum}**
