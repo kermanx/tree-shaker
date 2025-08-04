@@ -3,9 +3,6 @@
 	"devDependencies": {
 		"@engine262/engine262": "0.0.1-dd05c163162914b12baca4fbabb6e9ce99a217bc",
 		"@kermanx/tree-shaker": "link:../../packages/napi",
-		"diff": "^6.0.0",
-		"picocolors": "^1.1.0",
-		"prettier": "^3.3.3",
 		"test262-harness": "^10.0.0"
 	},
 	"packageManager": "pnpm@9.11.0",

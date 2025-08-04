@@ -60,6 +60,7 @@ jobs:
       with:
         name: Test262 result
         path: |
+          ./tasks/test262/outputs.txt
           ./tasks/test262/failed.txt
           ./tasks/test262/stat.txt
     # Comment stat.txt to the commit or PR
@@ -72,21 +73,38 @@ jobs:
           const path = require('path');
           const stat = fs.readFileSync('./tasks/test262/stat.txt', 'utf-8');
           const body = stat.slice(0, 50000);
-          if (context.issue.number) {
-            github.rest.issues.createComment({
+          (async () => {
+            const comments = await github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body
             });
-          } else {
-            github.rest.repos.createCommitComment({
-              commit_sha: context.sha,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-          }
+            const existingComment = comments.data.find(comment => 
+              comment.body.includes('Test262 Result') && comment.user.type === 'Bot'
+            );
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                comment_id: existingComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              });
+            } else if (context.issue.number) {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              });
+            } else {
+              await github.rest.repos.createCommitComment({
+                commit_sha: context.sha,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              });
+            }
+          })();
 
   e2e:
     runs-on: ubuntu-latest
